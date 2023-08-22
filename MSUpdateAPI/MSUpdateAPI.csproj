@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+	  <ServerGarbageCollection>false</ServerGarbageCollection>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="7.0.10" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\microsoft-update-partition\microsoft-update-partition.csproj" />
+    <ProjectReference Include="..\microsoft-update-upstream-package-source\microsoft-update-upstream-source.csproj" />
+    <ProjectReference Include="..\microsoft-update-webservices\microsoft-update-webservices.csproj" />
+  </ItemGroup>
+
+</Project>
