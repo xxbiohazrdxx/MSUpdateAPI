@@ -9,7 +9,7 @@ namespace MSUpdateAPI.Services
 		private readonly UpdateService service;
 		private readonly TimeSpan RefreshInterval; 
 
-		public MetadataBackgroundService(ILogger<MetadataBackgroundService> Logger, IOptions<MSUpdateAPIConfiguration> Configuration, UpdateService Service)
+		public MetadataBackgroundService(ILogger<MetadataBackgroundService> Logger, IOptions<ServiceConfiguration> Configuration, UpdateService Service)
 		{
 			logger = Logger;
 			service = Service;

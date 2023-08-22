@@ -15,13 +15,13 @@ namespace MSUpdateAPI.Services
 		private readonly ILogger logger;
 		private readonly IDbContextFactory<MSUpdateAPIContext> dbContextFactory;
 
-		private readonly MSUpdateAPIConfiguration configuration;
+		private readonly ServiceConfiguration configuration;
 
 		private string logMessagePrefix = string.Empty;
 
 		public bool MetadataLoaded { get; private set; } = false;
 
-		public UpdateService(ILogger<UpdateService> Logger, IDbContextFactory<MSUpdateAPIContext> DbContextFactory, IOptions<MSUpdateAPIConfiguration> Configuration)
+		public UpdateService(ILogger<UpdateService> Logger, IDbContextFactory<MSUpdateAPIContext> DbContextFactory, IOptions<ServiceConfiguration> Configuration)
 		{
 			logger = Logger;
 			dbContextFactory = DbContextFactory;

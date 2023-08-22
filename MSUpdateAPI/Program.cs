@@ -15,15 +15,15 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.Configure<MSUpdateAPIConfiguration>(builder.Configuration.GetSection("Configuration"));
-builder.Services.Configure<MSUpdateAPIDBConfiguration>(builder.Configuration.GetSection("DatabaseConfiguration"));
+builder.Services.Configure<ServiceConfiguration>(builder.Configuration.GetSection("Configuration"));
+builder.Services.Configure<DatabaseConfiguration>(builder.Configuration.GetSection("DatabaseConfiguration"));
 
 builder.Services.AddSingleton<UpdateService>();
 builder.Services.AddHostedService<MetadataBackgroundService>();
 
 builder.Services.AddDbContextFactory<MSUpdateAPIContext>((IServiceProvider serviceProvider, DbContextOptionsBuilder options) =>
 {
-	var databaseConfiguration = serviceProvider.GetRequiredService<IOptions<MSUpdateAPIDBConfiguration>>().Value;
+	var databaseConfiguration = serviceProvider.GetRequiredService<IOptions<DatabaseConfiguration>>().Value;
 	options.UseCosmos(databaseConfiguration.Uri, databaseConfiguration.PrimaryKey, databaseConfiguration.DatabaseName);
 #if DEBUG
 	options.EnableSensitiveDataLogging();
@@ -31,7 +31,7 @@ builder.Services.AddDbContextFactory<MSUpdateAPIContext>((IServiceProvider servi
 });
 builder.Services.AddDbContext<MSUpdateAPIContext>((IServiceProvider serviceProvider, DbContextOptionsBuilder options) =>
 {
-	var databaseConfiguration = serviceProvider.GetRequiredService<IOptions<MSUpdateAPIDBConfiguration>>().Value;
+	var databaseConfiguration = serviceProvider.GetRequiredService<IOptions<DatabaseConfiguration>>().Value;
 	options.UseCosmos(databaseConfiguration.Uri, databaseConfiguration.PrimaryKey, databaseConfiguration.DatabaseName);
 });
 

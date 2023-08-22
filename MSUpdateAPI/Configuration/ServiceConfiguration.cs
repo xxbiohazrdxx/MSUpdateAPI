@@ -1,6 +1,6 @@
 ﻿namespace MSUpdateAPI.Configuration
 {
-	public class MSUpdateAPIConfiguration
+	public class ServiceConfiguration
 	{
 		public int RefreshIntervalHours { get; set; } = 12;
 		public int RefreshIntervalMinutes { get; set; } = 0;
