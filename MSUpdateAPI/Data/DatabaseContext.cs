@@ -3,9 +3,9 @@ using MSUpdateAPI.Models;
 
 namespace MSUpdateAPI.Data
 {
-	public class MSUpdateAPIContext : DbContext
+	public class DatabaseContext : DbContext
 	{
-		public MSUpdateAPIContext(DbContextOptions<MSUpdateAPIContext> options) : base(options) { }
+		public DatabaseContext(DbContextOptions<DatabaseContext> options) : base(options) { }
 
 		public DbSet<Product> Products { get; set; }
 		public DbSet<Category> Categories { get; set; }

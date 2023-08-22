@@ -13,7 +13,7 @@ namespace MSUpdateAPI.Services
 	public class UpdateService
 	{
 		private readonly ILogger logger;
-		private readonly IDbContextFactory<MSUpdateAPIContext> dbContextFactory;
+		private readonly IDbContextFactory<DatabaseContext> dbContextFactory;
 
 		private readonly ServiceConfiguration configuration;
 
@@ -21,7 +21,7 @@ namespace MSUpdateAPI.Services
 
 		public bool MetadataLoaded { get; private set; } = false;
 
-		public UpdateService(ILogger<UpdateService> Logger, IDbContextFactory<MSUpdateAPIContext> DbContextFactory, IOptions<ServiceConfiguration> Configuration)
+		public UpdateService(ILogger<UpdateService> Logger, IDbContextFactory<DatabaseContext> DbContextFactory, IOptions<ServiceConfiguration> Configuration)
 		{
 			logger = Logger;
 			dbContextFactory = DbContextFactory;

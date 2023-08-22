@@ -21,7 +21,7 @@ builder.Services.Configure<DatabaseConfiguration>(builder.Configuration.GetSecti
 builder.Services.AddSingleton<UpdateService>();
 builder.Services.AddHostedService<MetadataBackgroundService>();
 
-builder.Services.AddDbContextFactory<MSUpdateAPIContext>((IServiceProvider serviceProvider, DbContextOptionsBuilder options) =>
+builder.Services.AddDbContextFactory<DatabaseContext>((IServiceProvider serviceProvider, DbContextOptionsBuilder options) =>
 {
 	var databaseConfiguration = serviceProvider.GetRequiredService<IOptions<DatabaseConfiguration>>().Value;
 	options.UseCosmos(databaseConfiguration.Uri, databaseConfiguration.PrimaryKey, databaseConfiguration.DatabaseName);
@@ -29,7 +29,7 @@ builder.Services.AddDbContextFactory<MSUpdateAPIContext>((IServiceProvider servi
 	options.EnableSensitiveDataLogging();
 #endif
 });
-builder.Services.AddDbContext<MSUpdateAPIContext>((IServiceProvider serviceProvider, DbContextOptionsBuilder options) =>
+builder.Services.AddDbContext<DatabaseContext>((IServiceProvider serviceProvider, DbContextOptionsBuilder options) =>
 {
 	var databaseConfiguration = serviceProvider.GetRequiredService<IOptions<DatabaseConfiguration>>().Value;
 	options.UseCosmos(databaseConfiguration.Uri, databaseConfiguration.PrimaryKey, databaseConfiguration.DatabaseName);
@@ -51,7 +51,7 @@ using (var scope = app.Services.CreateScope())
 {
 	try
 	{
-		var context = scope.ServiceProvider.GetRequiredService<MSUpdateAPIContext>();
+		var context = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
 		context.Database.EnsureCreated();
 	}
 	catch (Exception ex)
