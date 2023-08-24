@@ -354,9 +354,9 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Metadata
         /// <returns>Rehydrated MicrosoftUpdatePackage object</returns>
         public static MicrosoftUpdatePackage FromMetadataXml(byte[] metadata, Dictionary<string, UpdateFileUrl> filesCollection)
         {
-            var metadataStream = new GZipStream(new MemoryStream(metadata, false), CompressionMode.Decompress);
+            var metadataStream = new MemoryStream(metadata, false);
             var createdUpdate = FromMetadataXml(metadataStream, filesCollection) as MicrosoftUpdatePackage;
-            createdUpdate._MetadataBytes = metadata;
+            //createdUpdate._MetadataBytes = metadata;
 
             return createdUpdate;
         }

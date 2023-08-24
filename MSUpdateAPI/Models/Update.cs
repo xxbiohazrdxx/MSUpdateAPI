@@ -11,9 +11,14 @@ namespace MSUpdateAPI.Models
 		public string KBArticleId { get; set; }
 		public List<OwnedProduct> Products { get; set; }
 		public OwnedCategory? Classification { get; set; }
-		[JsonIgnore]
-		public List<string> Superseded { get; set; }
 		public List<File> Files { get; set; }
+
+
+		[JsonIgnore]
+		public List<string> BundledUpdates { get; set; }
+		[JsonIgnore]
+		public List<string> SupersededUpdates { get; set; }
+
 
 		public Update() { }
 	}

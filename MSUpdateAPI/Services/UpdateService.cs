@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.PackageGraph.MicrosoftUpdate.Metadata;
 using Microsoft.PackageGraph.MicrosoftUpdate.Metadata.Content;
@@ -7,42 +8,66 @@ using Microsoft.PackageGraph.Storage;
 using MSUpdateAPI.Configuration;
 using MSUpdateAPI.Data;
 using MSUpdateAPI.Models;
+using System.Timers;
 
 namespace MSUpdateAPI.Services
 {
 	public class UpdateService
 	{
+		// Read only injected w/ DI
 		private readonly ILogger logger;
 		private readonly IDbContextFactory<DatabaseContext> dbContextFactory;
 
 		private readonly ServiceConfiguration configuration;
 
-		private string logMessagePrefix = string.Empty;
+		// Throttle
+		private System.Timers.Timer throttleTimer;
+		private static readonly TimeSpan throttleInterval = new(0, 2, 0);
+		private bool throttle { get; set; } = false;
 
 		public bool MetadataLoaded { get; private set; } = false;
+		public string LastLogMessage { get; private set; } = string.Empty;
+		private string logMessagePrefix { get; set; } = string.Empty;
 
 		public UpdateService(ILogger<UpdateService> Logger, IDbContextFactory<DatabaseContext> DbContextFactory, IOptions<ServiceConfiguration> Configuration)
 		{
 			logger = Logger;
 			dbContextFactory = DbContextFactory;
+
+			throttleTimer = new System.Timers.Timer()
+			{
+				Interval = throttleInterval.TotalMilliseconds,
+				AutoReset = false,
+				Enabled = false
+			};
+			throttleTimer.Elapsed += (sender, e) => throttle = true;
+
 			configuration = Configuration.Value;
 		}
 
 		private void CopyProgress(object? sender, PackageStoreEventArgs e)
 		{
+			LastLogMessage = string.Format("{0}: {1}/{2}", logMessagePrefix, e.Current, e.Total);
 			logger.LogInformation("{LogMessagePrefix}: {Current}/{Total}", logMessagePrefix, e.Current, e.Total);
 		}
 
-#region Metadata
+		#region Metadata
 		internal async Task LoadMetadata(CancellationToken Token)
 		{
+			LastLogMessage = "Beginning metadata refresh";
 			logger.LogInformation("Beginning metadata refresh");
 			MetadataLoaded = false;
+
+			#if !DEBUG
+			throttleTimer.Enabled = true;
+			#endif
 
 			await LoadProductAndCategoryMetadata(Token);
 			await LoadUpdateMetadata(Token);
 
+			throttleTimer.Enabled = false;
 			MetadataLoaded = true;
+			LastLogMessage = "Metadata refresh complete";
 			logger.LogInformation("Metadata refresh complete");
 		}
 
@@ -59,66 +84,66 @@ namespace MSUpdateAPI.Services
 			categoriesSource.MetadataCopyProgress += CopyProgress;
 
 			var allClassificationCategories = categoriesSource
-				.GetCategories(Token, 
+				.GetCategories(Token,
 					 allExistingCategories.Select(x => x.Id)
 					.Concat(allExistingProducts.Select(x => x.Id))
-					.Concat(allExistingDetectoids.Select(x => x.Id))
-					.ToList());
+					.Concat(allExistingDetectoids.Select(x => x.Id)));
 
-			logger.LogInformation("Processing product and category metadata");
-
-			var allCategories = allClassificationCategories
-				.OfType<ClassificationCategory>()
-				.Select(x => new Category()
-				{
-					Id = x.Id.ID,
-					Name = x.Title
-				})
-				.ToList();
-
+			LastLogMessage = "Processing classification metadata";
+			logger.LogInformation("Processing classification metadata");
 			logger.LogInformation("Existing db category count: {existingCategoryCount}", allExistingCategories.Count);
-			logger.LogInformation("New categories to add: {newCategoryCount}", allCategories.Count);
-
-			await dbContext.Categories.AddRangeAsync(allCategories);
-			await dbContext.SaveChangesAsync();
-
-			// There are a very small number of duplicate ProductCategory items with identical GUIDs.
-			// This selects the ProductCategory with the GUID that has the highest revision
-			var allProductCategories = allClassificationCategories
-				.OfType<ProductCategory>()
-				.GroupBy(x => x.Id.ID)
-				.Select(x => x.OrderBy(y => y.Id.Revision).Last());
-
-			var allProducts = allProductCategories
-				.Select(x => new Product()
-				{
-					Id = x.Id.ID,
-					Name = x.Title,
-					Categories = (x.Categories?
-						.Select(y => y.ToString()) ?? Array.Empty<string>())
-						.ToList()
-				})
-				.ToList();
-
 			logger.LogInformation("Existing db product count: {existingProductCount}", allExistingProducts.Count);
-			logger.LogInformation("New products to add: {newProductCount}", allProducts.Count);
-
-			await dbContext.Products.AddRangeAsync(allProducts);
-			await dbContext.SaveChangesAsync();
-
-			// While we don't actually use detectoids, storing them in the database reduces delta metadata sync time
-			var allDetectoids = allClassificationCategories
-				.OfType<DetectoidCategory>()
-				.GroupBy(x => x.Id.ID)
-				.Select(x => x.OrderBy(y => y.Id.Revision).Last())
-				.Select(x => new Detectoid(x.Id.ID, x.Title))
-				.ToList();
-
 			logger.LogInformation("Existing db detectoid count: {existingDetectoidCount}", allExistingDetectoids.Count);
-			logger.LogInformation("New detectoids to add: {newDetectoidCount}", allDetectoids.Count);
 
-			await dbContext.Detectoids.AddRangeAsync(allDetectoids);
-			await dbContext.SaveChangesAsync();
+			await foreach (var currentClassification in allClassificationCategories)
+			{
+				if (throttle)
+				{
+					LastLogMessage = "Self throttling for 2 minutes so as to not exceed quota";
+					logger.LogInformation("Self throttling for 2 minutes so as to not exceed quota");
+					Thread.Sleep(throttleInterval);
+
+					throttle = false;
+					throttleTimer.Interval = throttleInterval.TotalMilliseconds;
+				}
+
+				logger.LogInformation("Added classification: {Id}:{Revision} - {Title}", currentClassification.Id.ID, currentClassification.Id.Revision, currentClassification.Title);
+				
+				if (currentClassification is ClassificationCategory)
+				{
+					await dbContext.Categories.AddAsync(new Category()
+					{
+						Id = currentClassification.Id.ID,
+						Name = currentClassification.Title
+					});
+				}
+				else if (currentClassification is ProductCategory)
+				{
+					await dbContext.Products.AddAsync(new Product()
+					{
+						Id = currentClassification.Id.ID,
+						Revision = currentClassification.Id.Revision,
+						Name = currentClassification.Title,
+						Categories = currentClassification.Categories?.Select(y => y.ToString()).ToList() ?? new List<string>()
+					});
+				}
+				// While we don't actually use detectoids, storing them in the database reduces delta metadata sync time
+				else if (currentClassification is DetectoidCategory)
+				{
+					await dbContext.Detectoids.AddAsync(new Detectoid()
+					{
+						Id = currentClassification.Id.ID,
+						Revision = currentClassification.Id.Revision,
+						Name = currentClassification.Title
+					});
+				}
+				else
+				{
+					break;
+				}
+
+				await dbContext.SaveChangesAsync();
+			}
 		}
 
 		private async Task LoadUpdateMetadata(CancellationToken Token)
@@ -141,66 +166,77 @@ namespace MSUpdateAPI.Services
 			UpstreamUpdatesSource updatesSource = new(Microsoft.PackageGraph.MicrosoftUpdate.Source.Endpoint.Default, updatesFilter);
 			updatesSource.MetadataCopyProgress += CopyProgress;
 
-			var allUpdates = updatesSource
-				.GetUpdates(Token, allExistingUpdates.Select(x => x.Id), true)
-				.OfType<SoftwareUpdate>()
-				.ToList();
+			var allUpdates = updatesSource.GetUpdates(Token, allExistingUpdates.Select(x => x.Id));
 
+			LastLogMessage = "Processing update metadata";
 			logger.LogInformation("Processing update metadata");
-
-			var processedUpdates = allUpdates
-				.OfType<SoftwareUpdate>()
-				.Select(x => new Update()
-				{
-					Id = x.Id.ID,
-					Title = x.Title,
-					Description = x.Description,
-					CreationDate = DateTime.Parse(x.CreationDate),
-					KBArticleId = x.KBArticleId,
-					Products = allProducts
-								.Where(y => x.Categories?.Any(z => y.Id == z) ?? false)
-								.Select(z => new OwnedProduct()
-								{
-									Id = z.Id,
-									Name = z.Name
-								})
-								.ToList(),
-					Classification = allCategories
-								.Where(y => x.Categories?.Any(z => y.Id == z) ?? false)
-								.Select(z => new OwnedCategory()
-								{
-									Id = z.Id,
-									Name = z.Name
-								})
-								.SingleOrDefault(),
-					Superseded = x.SupersededUpdates
-								.Select(x => x.ToString())
-								.ToList(),
-					Files = (x.Files.Any() ? x.Files : allUpdates
-									.OfType<SoftwareUpdate>()
-									.Where(y => x.BundledUpdates?.Any(z => z.ID == y.Id.ID) ?? false)
-									.SelectMany(y => y.Files))
-								.OfType<UpdateFile>()
-								.Select(y => new Models.File()
-								{
-									FileName = y.FileName,
-									Source = y.Source,
-									ModifiedDate = y.ModifiedDate,
-									Digest = new FileDigest()
-									{
-										Algorithm = y.Digest.Algorithm,
-										Value = y.Digest.HexString
-									},
-									Size = y.Size
-								})
-								.ToList() ?? new List<Models.File>()
-				});
-
 			logger.LogInformation("Existing db update count: {existingUpdateCount}", allExistingUpdates.Count);
-			logger.LogInformation("New updates to add: {newCategoryCount}", allUpdates.Count);
 
-			await dbContext.Updates.AddRangeAsync(processedUpdates);
-			await dbContext.SaveChangesAsync();
+			await foreach (var current in allUpdates)
+			{
+				if (throttle)
+				{
+					logger.LogInformation("Self throttling for 2 minutes so as to not exceed quota");
+					Thread.Sleep(throttleInterval);
+
+					throttle = false;
+					throttleTimer.Interval = throttleInterval.TotalMilliseconds;
+				}
+
+				if (current is not SoftwareUpdate currentUpdate)
+				{
+					break;
+				}
+
+				var newUpdate = new Update()
+				{
+					Id = currentUpdate.Id.ID,
+					Title = currentUpdate.Title,
+					Description = currentUpdate.Description,
+					CreationDate = DateTime.Parse(currentUpdate.CreationDate),
+					KBArticleId = currentUpdate.KBArticleId,
+					BundledUpdates = currentUpdate.BundledUpdates
+						.Select(x => x.ID.ToString())
+						.ToList(),
+					Products = allProducts
+						.Where(y => currentUpdate.Categories?.Any(z => y.Id == z) ?? false)
+						.Select(z => new OwnedProduct()
+						{
+							Id = z.Id,
+							Name = z.Name
+						})
+						.ToList(),
+					Classification = allCategories
+						.Where(y => currentUpdate.Categories?.Any(z => y.Id == z) ?? false)
+						.Select(z => new OwnedCategory()
+						{
+							Id = z.Id,
+							Name = z.Name
+						})
+						.SingleOrDefault(),
+					SupersededUpdates = currentUpdate.SupersededUpdates
+						.Select(x => x.ToString())
+						.ToList(),
+					Files = currentUpdate.Files
+						.OfType<UpdateFile>()
+						.Select(y => new Models.File()
+						{
+							FileName = y.FileName,
+							Source = y.Source,
+							ModifiedDate = y.ModifiedDate,
+							Digest = new FileDigest()
+							{
+								Algorithm = y.Digest.Algorithm,
+								Value = y.Digest.HexString
+							},
+							Size = y.Size
+						})
+						.ToList()
+				};
+
+				await dbContext.Updates.AddAsync(newUpdate);
+				await dbContext.SaveChangesAsync();
+			}
 		}
 #endregion Metadata
 

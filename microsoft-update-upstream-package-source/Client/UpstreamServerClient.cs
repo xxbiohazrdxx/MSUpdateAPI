@@ -121,38 +121,6 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
             return result;
         }
 
-        /// <summary>
-        /// Attempts to retrieve metadata for an update that has expired and was removed from the update catalog index.
-        /// Sometimes, the metadata for the expired update can still be retrieved.
-        /// This method takes the update ID (without revision), a starting revision and a maximum range of revisions to attempt retrieval for. This method returns the metadata corresponding to the first revision found.
-        /// </summary>
-        /// <param name="partialId">The update ID, without the revision part.</param>
-        /// <param name="revisionHint">The revision at which to start the search.</param>
-        /// <param name="searchSpaceWindow">The range of revisions to attempt retrieval for.</param>
-        /// <returns>An update if a revision was found, null otherwise</returns>
-        public async Task<MicrosoftUpdatePackage> TryGetExpiredUpdate(Guid partialId, int revisionHint, int searchSpaceWindow)
-        {
-            if (AccessToken == null || AccessToken.ExpiresIn(TimeSpan.FromMinutes(2)))
-            {
-                await RefreshAccessToken(null, null);
-            }
-
-            // If no configuration is known, query it now
-            if (ConfigData == null)
-            {
-                await RefreshServerConfigData();
-            }
-
-            var (updateData, _) = TryGetExpiredUpdateInternal(partialId, revisionHint, searchSpaceWindow);
-
-            if (updateData != null)
-            {
-                return InMemoryUpdateFactory.FromServerSyncData(updateData, null);
-            }
-
-            return null;
-        }
-
         private async Task<ServerSyncConfigData> QueryConfigData()
         {
             var configDataRequest = new GetConfigDataRequest
@@ -165,7 +133,7 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
             };
 
             var configDataReply = await ServerSyncClient.GetConfigDataAsync(configDataRequest);
-            if (configDataReply == null || configDataReply.GetConfigDataResponse1 == null || configDataReply.GetConfigDataResponse1.GetConfigDataResult == null)
+            if (configDataReply?.GetConfigDataResponse1?.GetConfigDataResult == null)
             {
                 throw new Exception("Failed to get config data.");
             }
@@ -173,21 +141,12 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
             return configDataReply.GetConfigDataResponse1.GetConfigDataResult;
         }
 
-        internal IEnumerable<MicrosoftUpdatePackageIdentity> GetCategoryIds(out string newAnchor, string oldAnchor = null)
+        internal async Task<IEnumerable<MicrosoftUpdatePackageIdentity>> GetCategoryIds(string oldAnchor = null)
         {
-            if (AccessToken == null || AccessToken.ExpiresIn(TimeSpan.FromMinutes(2)))
-            {
-                RefreshAccessToken(null, null).GetAwaiter().GetResult();
-            }
+			await RefreshTokenAndConfig();
 
-            // If no configuration is known, query it now
-            if (ConfigData == null)
-            {
-                RefreshServerConfigData().GetAwaiter().GetResult();
-            }
-
-            // Create a request for categories
-            var revisionIdRequest = new GetRevisionIdListRequest
+			// Create a request for categories
+			var revisionIdRequest = new GetRevisionIdListRequest
             {
                 GetRevisionIdList = new GetRevisionIdListRequestBody()
                 {
@@ -204,40 +163,26 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
             // GetConfig must be true to request just categories
             revisionIdRequest.GetRevisionIdList.filter.GetConfig = true;
 
-            var revisionsIdReply = ServerSyncClient.GetRevisionIdListAsync(revisionIdRequest).GetAwaiter().GetResult();
-            if (revisionsIdReply == null || 
-                revisionsIdReply.GetRevisionIdListResponse1 == null || 
-                revisionsIdReply.GetRevisionIdListResponse1.GetRevisionIdListResult == null)
+            var revisionsIdReply = await ServerSyncClient.GetRevisionIdListAsync(revisionIdRequest);
+            if (revisionsIdReply?.GetRevisionIdListResponse1?.GetRevisionIdListResult == null)
             {
                 throw new Exception("Failed to get revision ID list");
             }
-
-            newAnchor = revisionsIdReply.GetRevisionIdListResponse1.GetRevisionIdListResult.Anchor;
 
             // Return IDs and the anchor for this query. The anchor can be used to get a delta list in the future.
             return revisionsIdReply
                 .GetRevisionIdListResponse1
                 .GetRevisionIdListResult
                 .NewRevisions
-                .Select(
-                    rawId => new MicrosoftUpdatePackageIdentity(rawId.UpdateID, rawId.RevisionNumber));
+                .Select(rawId => new MicrosoftUpdatePackageIdentity(rawId.UpdateID, rawId.RevisionNumber));
         }
 
-        internal IEnumerable<MicrosoftUpdatePackageIdentity> GetUpdateIds(UpstreamSourceFilter updatesFilter, out string newAnchor)
+        internal async Task<IEnumerable<MicrosoftUpdatePackageIdentity>> GetUpdateIds(UpstreamSourceFilter updatesFilter)
         {
-            if (AccessToken == null || AccessToken.ExpiresIn(TimeSpan.FromMinutes(2)))
-            {
-                RefreshAccessToken(null, null).GetAwaiter().GetResult();
-            }
+			await RefreshTokenAndConfig();
 
-            // If no configuration is known, query it now
-            if (ConfigData == null)
-            {
-                RefreshServerConfigData().GetAwaiter().GetResult();
-            }
-
-            // Create a request for categories
-            var revisionIdRequest = new GetRevisionIdListRequest
+			// Create a request for categories
+			var revisionIdRequest = new GetRevisionIdListRequest
             {
                 GetRevisionIdList = new GetRevisionIdListRequestBody()
                 {
@@ -249,47 +194,44 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
             // GetConfig must be false to request updates
             revisionIdRequest.GetRevisionIdList.filter.GetConfig = false;
 
-            var revisionsIdReply = ServerSyncClient.GetRevisionIdListAsync(revisionIdRequest).GetAwaiter().GetResult();
-            if (revisionsIdReply == null || revisionsIdReply.GetRevisionIdListResponse1 == null || revisionsIdReply.GetRevisionIdListResponse1.GetRevisionIdListResult == null)
+            var revisionsIdReply = await ServerSyncClient.GetRevisionIdListAsync(revisionIdRequest);
+            if (revisionsIdReply?.GetRevisionIdListResponse1?.GetRevisionIdListResult == null)
             {
                 throw new Exception("Failed to get revision ID list");
             }
-
-            newAnchor = null;
 
             // Return IDs and the anchor for this query. The anchor can be used to get a delta list in the future.
             return revisionsIdReply.GetRevisionIdListResponse1.GetRevisionIdListResult.NewRevisions.Select(
                 rawId => new MicrosoftUpdatePackageIdentity(rawId.UpdateID, rawId.RevisionNumber));
         }
 
+        private async Task RefreshTokenAndConfig()
+        {
+			if (AccessToken == null || AccessToken.ExpiresIn(TimeSpan.FromMinutes(2)))
+			{
+				await RefreshAccessToken(null, null);
+			}
+
+			// If no configuration is known, query it now
+			if (ConfigData == null)
+			{
+				await RefreshServerConfigData();
+			}
+		}
+
         /// <summary>
         /// Retrieves update data for the list of update ids
         /// </summary>
         /// <param name="updateIds">The ids to retrieve data for</param>
-        internal List<MicrosoftUpdatePackage> GetUpdateDataForIds(List<MicrosoftUpdatePackageIdentity> updateIds)
+        internal async IAsyncEnumerable<MicrosoftUpdatePackage> GetUpdateDataForIds(MicrosoftUpdatePackageIdentity[] updateIds)
         {
-            if (AccessToken == null || AccessToken.ExpiresIn(TimeSpan.FromMinutes(2)))
-            {
-                RefreshAccessToken(null, null).GetAwaiter().GetResult();
-            }
+            await RefreshTokenAndConfig();
 
-            // If no configuration is known, query it now
-            if (ConfigData == null)
-            {
-                RefreshServerConfigData().GetAwaiter().GetResult();
-            }
-
-            var rawUpdateIds = updateIds
+            var retrieveBatches = updateIds
                 .Select(id => new UpdateIdentity() { UpdateID = id.ID, RevisionNumber = id.Revision })
-                .ToList();
+                .Chunk(ConfigData.MaxNumberOfUpdatesPerRequest);
 
-            // Data retrieval is done is done in batches of upto MaxNumberOfUpdatesPerRequest
-            var retrieveBatches = CreateBatchedListFromFlatList(rawUpdateIds, ConfigData.MaxNumberOfUpdatesPerRequest);
-
-            var packages = new ConcurrentBag<MicrosoftUpdatePackage>();
-
-            // Run batches in parallel
-            retrieveBatches.AsParallel().ForAll(batch =>
+            foreach(var batch in retrieveBatches)
             {
                 var updateDataRequest = new GetUpdateDataRequest
                 {
@@ -300,146 +242,23 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
                     }
                 };
 
-                GetUpdateDataResponse updateDataReply;
-                int retryCount = 0;
-                do
-                {
-                    try
-                    {
-                        updateDataReply = ServerSyncClient.GetUpdateDataAsync(updateDataRequest).GetAwaiter().GetResult();
-                    }
-                    catch (System.TimeoutException)
-                    {
-                        updateDataReply = null;
-                    }
-                    catch(Exception)
-                    {
-                        System.Threading.Thread.Sleep(5000);
-                        updateDataReply = null;
-                    }
-                    retryCount++;
-                } while (updateDataReply == null && retryCount < 10);
+                var updateDataReply = await ServerSyncClient.GetUpdateDataAsync(updateDataRequest);
 
-                if (updateDataReply == null || updateDataReply.GetUpdateDataResponse1 == null || updateDataReply.GetUpdateDataResponse1.GetUpdateDataResult == null)
+                if (updateDataReply?.GetUpdateDataResponse1?.GetUpdateDataResult == null)
                 {
-                    throw new Exception("Failed to get update metadata");
-                }
+					throw new Exception("Failed to get update data");
+				}
 
                 // Parse the list of raw files into a more usable format
                 var filesList = updateDataReply.GetUpdateDataResponse1.GetUpdateDataResult.fileUrls
-                .Select(rawFile => InMemoryUpdateFactory.FromServerSyncData(rawFile))
-                .ToDictionary(file => file.DigestBase64);
+                    .Select(rawFile => InMemoryUpdateFactory.FromServerSyncData(rawFile))
+                    .ToDictionary(file => file.DigestBase64);
 
                 foreach (var rawUpdate in updateDataReply.GetUpdateDataResponse1.GetUpdateDataResult.updates)
                 {
-                    packages.Add(InMemoryUpdateFactory.FromServerSyncData(rawUpdate, filesList));
+					yield return InMemoryUpdateFactory.FromServerSyncData(rawUpdate, filesList);
                 }
-            });
-
-            return packages.ToList();
-        }
-
-        private (ServerSyncUpdateData updateData, List<UpdateFileUrl> files) TryGetExpiredUpdateInternal(Guid partialUpdateId, int revisionHint, int searchSpaceWindow)
-        {
-            var effectiveSearchSpaceWindow = Math.Max(searchSpaceWindow, revisionHint % 100);
-            var currentRevision = revisionHint;
-            do
-            {
-                if ((currentRevision % 100) > effectiveSearchSpaceWindow)
-                {
-                    currentRevision -= currentRevision % 100;
-                    currentRevision += effectiveSearchSpaceWindow;
-                }
-
-                var updateDataRequest = new GetUpdateDataRequest
-                {
-                    GetUpdateData = new GetUpdateDataRequestBody()
-                    {
-                        cookie = AccessToken.AccessCookie,
-                        updateIds = new UpdateIdentity[]
-                        {
-                            new UpdateIdentity() 
-                            { 
-                                UpdateID = partialUpdateId, 
-                                RevisionNumber = currentRevision 
-                            }
-                        }
-                    }
-                };
-
-                GetUpdateDataResponse updateDataReply;
-                int retryCount = 0;
-                do
-                {
-                    try
-                    {
-                        updateDataReply = ServerSyncClient.GetUpdateDataAsync(updateDataRequest).GetAwaiter().GetResult();
-                    }
-                    catch (System.TimeoutException)
-                    {
-                        updateDataReply = null;
-                    }
-                    catch(System.ServiceModel.FaultException)
-                    {
-                        updateDataReply = null;
-                        break;
-                    }
-                    retryCount++;
-                } while (updateDataReply == null && retryCount < 10);
-
-                if (updateDataReply == null || updateDataReply.GetUpdateDataResponse1 == null || updateDataReply.GetUpdateDataResponse1.GetUpdateDataResult == null)
-                {
-                    currentRevision--;
-                }
-                else
-                {
-                    // Parse the list of raw files into a more usable format
-                    var filesList = new List<UpdateFileUrl>(
-                        updateDataReply.GetUpdateDataResponse1.GetUpdateDataResult.fileUrls.Select(
-                            rawFile => new UpdateFileUrl(
-                                Convert.ToBase64String(rawFile.FileDigest),
-                                rawFile.MUUrl,
-                                rawFile.UssUrl
-                                )));
-                    var update = updateDataReply.GetUpdateDataResponse1.GetUpdateDataResult.updates.First();
-
-                    return (update, filesList);
-                }
-            } while (currentRevision > 0);
-
-            return (null, null);
-        }
-
-
-        /// <summary>
-        /// Breaks down a flat list of objects in a list of batches, each batch having a maximum allowed size
-        /// </summary>
-        /// <typeparam name="T">The type of objects to batch</typeparam>
-        /// <param name="flatList">The flat list of objects to break down</param>
-        /// <param name="maxBatchSize">The maximum size of a batch</param>
-        /// <returns>The batched list</returns>
-        private static List<T[]> CreateBatchedListFromFlatList<T>(List<T> flatList, int maxBatchSize)
-        {
-            // Figure out how many batches we have
-            var batchCount = flatList.Count / maxBatchSize;
-            // One more batch for the remaininig objects, if any
-            batchCount += flatList.Count % maxBatchSize == 0 ? 0 : 1;
-
-            List<T[]> batches = new(batchCount);
-            for (int i = 0; i < batchCount; i++)
-            {
-                var batchSize = maxBatchSize;
-                // If this is the last batch, the size might not be the max allowed size but the remainder of elements
-                if (i == batchCount - 1 && flatList.Count % maxBatchSize != 0)
-                {
-                    batchSize = flatList.Count % maxBatchSize;
-                }
-
-                // Add the new batch to the batches list
-                batches.Add(flatList.GetRange(i * maxBatchSize, batchSize).ToArray());
             }
-
-            return batches;
         }
     }
 }

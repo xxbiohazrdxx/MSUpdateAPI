@@ -16,46 +16,50 @@ namespace MSUpdateAPI.Data
 		{
 			builder.HasManualThroughput(1000);
 
-			// Product configuration
-			builder.Entity<Product>()
-				.Property(x => x.Id)
-				.ToJsonProperty("id");
-			builder.Entity<Product>()
-				.Ignore(x => x.Subproducts)
-				.ToContainer("Products")
-				.HasNoDiscriminator()
-				.HasKey(x => x.Id);
+			builder.Entity<Product>(entity =>
+			{
+				//entity.Property(x => x.Id)
+				//	.ToJsonProperty("id");
 
-			// Category configuration
-			builder.Entity<Category>()
-				.Property(x => x.Id)
-				.ToJsonProperty("id");
-			builder.Entity<Category>()
-				.ToContainer("Categories")
-				.HasNoDiscriminator()
-				.HasKey(x => x.Id);
+				entity.Ignore(x => x.Subproducts);
 
-			// Detectoid configuration
-			builder.Entity<Detectoid>()
-				.Property(x => x.Id)
-				.ToJsonProperty("id");
-			builder.Entity<Detectoid>()
-				.ToContainer("Detectoids")
-				.HasNoDiscriminator()
-				.HasKey(x => x.Id);
+				entity.ToContainer("Products")
+					.HasNoDiscriminator()
+					.HasKey(x => new { x.Id, x.Revision });
+			});
+				
+			builder.Entity<Category>(entity =>
+			{
+				entity.Property(x => x.Id)
+					.ToJsonProperty("id");
 
-			// Update configuration
-			builder.Entity<Update>()
-				.Property(x => x.Id)
-				.ToJsonProperty("id");
-			builder.Entity<Update>()
-				.OwnsOne(x => x.Classification);
-			builder.Entity<Update>()
-				.OwnsMany(x => x.Products);
-			builder.Entity<Update>()
-				.ToContainer("Updates")
-				.HasNoDiscriminator()
-				.HasKey(x => x.Id);
+				entity.ToContainer("Categories")
+					.HasNoDiscriminator()
+					.HasKey(x => x.Id);
+			});
+				
+			builder.Entity<Detectoid>(entity =>
+			{
+				//entity.Property(x => x.Id)
+				//	.ToJsonProperty("id");
+
+				entity.ToContainer("Detectoids")
+					.HasNoDiscriminator()
+					.HasKey(x => new { x.Id, x.Revision });
+			});
+
+			builder.Entity<Update>(entity =>
+			{
+				entity.Property(x => x.Id)
+					.ToJsonProperty("id");
+
+				entity.OwnsOne(x => x.Classification);
+				entity.OwnsMany(x => x.Products);
+
+				entity.ToContainer("Updates")
+					.HasNoDiscriminator()
+					.HasKey(x => x.Id);
+			});
 
 			base.OnModelCreating(builder);
 		}

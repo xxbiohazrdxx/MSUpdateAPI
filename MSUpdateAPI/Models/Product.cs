@@ -13,10 +13,12 @@ namespace MSUpdateAPI.Models
 	public class Product
 	{
 		public Guid Id { get; set; }
+		[JsonIgnore]
+		public int Revision { get; set; }
 		public string Name { get; set; }
 		public List<Product> Subproducts { get; set; } = new List<Product>();
 		[JsonIgnore]
-		public List<string> Categories { get; set; } = new List<string>();
+		public List<string> Categories { get; set; } = default!;
 		internal bool Enabled
 		{
 			get
@@ -36,12 +38,5 @@ namespace MSUpdateAPI.Models
 		private bool enabled;
 
 		public Product() { }
-
-		public Product(Guid Id, string Name, IEnumerable<Product>? Subproducts)
-		{
-			this.Id = Id;
-			this.Name = Name;
-			this.Subproducts.AddRange(Subproducts ?? Array.Empty<Product>());
-		}
 	}
 }

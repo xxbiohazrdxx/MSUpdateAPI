@@ -19,7 +19,8 @@ namespace MSUpdateAPI.Controllers
 		{
 			if (!service.MetadataLoaded)
 			{
-				return StatusCode(StatusCodes.Status503ServiceUnavailable, "Metadata is being refreshed.");
+				var message = string.Format("Metadata is being refreshed: {0}", service.LastLogMessage);
+				return StatusCode(StatusCodes.Status503ServiceUnavailable, message);
 			}
 
 			var update = await service.GetUpdate(Id);
@@ -33,7 +34,8 @@ namespace MSUpdateAPI.Controllers
 		{
 			if (!service.MetadataLoaded)
 			{
-				return StatusCode(StatusCodes.Status503ServiceUnavailable, "Metadata is being refreshed.");
+				var message = string.Format("Metadata is being refreshed: {0}", service.LastLogMessage);
+				return StatusCode(StatusCodes.Status503ServiceUnavailable, message);
 			}
 
 			var update = await service.GetSupersedingUpdate(Id);
@@ -47,7 +49,8 @@ namespace MSUpdateAPI.Controllers
 		{
 			if (!service.MetadataLoaded)
 			{
-				return StatusCode(StatusCodes.Status503ServiceUnavailable, "Metadata is being refreshed.");
+				var message = string.Format("Metadata is being refreshed: {0}", service.LastLogMessage);
+				return StatusCode(StatusCodes.Status503ServiceUnavailable, message);
 			}
 
 			return Ok(await service.GetUpdates(Classification, Product, SearchString));

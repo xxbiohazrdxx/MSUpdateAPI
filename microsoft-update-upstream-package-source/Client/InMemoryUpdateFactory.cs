@@ -7,8 +7,6 @@ using Microsoft.PackageGraph.MicrosoftUpdate.Metadata.Content;
 using Microsoft.UpdateServices.WebServices.ServerSync;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
 using System.Text;
 
 namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
@@ -20,15 +18,7 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
             byte[] metadata;
             if (!string.IsNullOrEmpty(serverSyncData.XmlUpdateBlob))
             {
-                var compressedStream = new MemoryStream();
-                using (var compressor = new GZipStream(compressedStream, CompressionLevel.Fastest, true))
-                {
-                    new MemoryStream(
-                        Encoding.Unicode.GetBytes(serverSyncData.XmlUpdateBlob), false)
-                        .CopyTo(compressor);
-                }
-
-                metadata = compressedStream.ToArray();
+                metadata = Encoding.Unicode.GetBytes(serverSyncData.XmlUpdateBlob);
             }
             else
             { 

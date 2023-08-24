@@ -40,32 +40,24 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Compression
 
         static byte[] RecompressUnicodeDataWindows(byte[] compressedData)
         {
-            // We use temporary files to write the in-memory cabinet,
-            // run expand on it then read the resulting file back in memory
-            var cabTempFile = Path.GetTempFileName();
+			// We use temporary files to write the in-memory cabinet,
+			// run expand on it then read the resulting file back in memory
+			var cabTempFile = Path.GetTempFileName();
             var xmlTempFile = Path.GetTempFileName();
 
-            var inMemoryStream = new MemoryStream();
-            try
-            {
-                File.WriteAllBytes(cabTempFile, compressedData);
+            byte[] returnBytes;
 
-                var startInfo = new ProcessStartInfo("expand.exe", $"\"{cabTempFile}\" \"{xmlTempFile}\"")
-                {
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-                var expandProcess = Process.Start(startInfo);
-                expandProcess.WaitForExit();
+            File.WriteAllBytes(cabTempFile, compressedData);
 
-                using var decompresedFile = File.OpenRead(xmlTempFile);
-                using var recompressor = new GZipStream(inMemoryStream, CompressionLevel.Fastest, true);
-                decompresedFile.CopyTo(recompressor);
-            }
-            catch (Exception)
+            var startInfo = new ProcessStartInfo("expand.exe", $"\"{cabTempFile}\" \"{xmlTempFile}\"")
             {
-                inMemoryStream = null;
-            }
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            var expandProcess = Process.Start(startInfo);
+            expandProcess.WaitForExit();
+
+			returnBytes = File.ReadAllBytes(xmlTempFile);
 
             if (File.Exists(cabTempFile))
             {
@@ -77,14 +69,7 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Compression
                 File.Delete(xmlTempFile);
             }
 
-            if (inMemoryStream != null)
-            {
-                return inMemoryStream.ToArray();
-            }
-            else
-            {
-                return null;
-            }
+            return returnBytes;
         }
 
         static byte[] RecompressUnicodeDataLinux(byte[] compressedData)

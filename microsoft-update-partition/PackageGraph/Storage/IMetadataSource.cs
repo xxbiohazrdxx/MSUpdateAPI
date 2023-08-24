@@ -22,7 +22,9 @@ namespace Microsoft.PackageGraph.Storage
         /// <summary>
         /// Operation current value
         /// </summary>
-        public long Current { get; set; }
+        public long Current;
+
+    
 
         /// <summary>
         /// Constructor for a package store event
@@ -69,7 +71,7 @@ namespace Microsoft.PackageGraph.Storage
         /// </summary>
         /// <param name="destination">Metadata destination</param>
         /// <param name="cancelToken">Cancellation token</param>
-        void CopyTo(IMetadataSink destination, CancellationToken cancelToken);
+        //void CopyTo(IMetadataSink destination, CancellationToken cancelToken);
 
         /// <summary>
         /// Copies select package metadata from this source to the target metadata sink
@@ -77,7 +79,7 @@ namespace Microsoft.PackageGraph.Storage
         /// <param name="destination">Metadata destination</param>
         /// <param name="filter">Filter to apply during copy</param>
         /// <param name="cancelToken">Cancellation token</param>
-        void CopyTo(IMetadataSink destination, IMetadataFilter filter, CancellationToken cancelToken);
+        //void CopyTo(IMetadataSink destination, IMetadataFilter filter, CancellationToken cancelToken);
 
         /// <summary>
         /// Progress notification during metadata copy operations

@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
 {
@@ -20,7 +21,7 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
         private readonly UpstreamServerClient _Client;
         private UpstreamSourceFilter _Filter;
 
-        private List<MicrosoftUpdatePackageIdentity> _Identities;
+        private IEnumerable<MicrosoftUpdatePackageIdentity> _Identities;
 
         /// <summary>
         /// Progress indicator during metadata copy operations
@@ -44,48 +45,15 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
             _Filter = filter;
         }
 
-        private void RetrievePackageIdentities()
+        private async Task RetrievePackageIdentities()
         {
-            lock (this)
+            if (_Identities == null)
             {
-                if (_Identities == null)
-                {
-                    _Identities = _Client.GetUpdateIds(_Filter, out var _).ToList();
-                    _Identities.Sort();
-                }
+                _Identities = await _Client.GetUpdateIds(_Filter);
+                //_Identities.Sort();
             }
         }
 
-        /// <summary>
-        /// Breaks down a flat list of objects in a list of batches, each batch having a maximum allowed size
-        /// </summary>
-        /// <typeparam name="T">The type of objects to batch</typeparam>
-        /// <param name="flatList">The flat list of objects to break down</param>
-        /// <param name="maxBatchSize">The maximum size of a batch</param>
-        /// <returns>The batched list</returns>
-        private static List<List<T>> CreateBatchedListFromFlatList<T>(List<T> flatList, int maxBatchSize)
-        {
-            // Figure out how many batches we have
-            var batchCount = flatList.Count / maxBatchSize;
-            // One more batch for the remaininig objects, if any
-            batchCount += flatList.Count % maxBatchSize == 0 ? 0 : 1;
-
-            List<List<T>> batches = new(batchCount);
-            for (int i = 0; i < batchCount; i++)
-            {
-                var batchSize = maxBatchSize;
-                // If this is the last batch, the size might not be the max allowed size but the remainder of elements
-                if (i == batchCount - 1 && flatList.Count % maxBatchSize != 0)
-                {
-                    batchSize = flatList.Count % maxBatchSize;
-                }
-
-                // Add the new batch to the batches list
-                batches.Add(flatList.GetRange(i * maxBatchSize, batchSize));
-            }
-
-            return batches;
-        }
 
 		/// <summary>
 		/// Retrieves products from the upstream source
@@ -94,96 +62,85 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
 		/// <param name="excludedPackageIds">A list of GUIDs to exclude from the retrieval</param>
 		/// <param name="immediatelyReleaseMetadata">If true, metadata XML is immediately discarded once the update is parsed</param>
 		/// <returns>List of Microsoft Update updates</returns>
-		public List<MicrosoftUpdatePackage> GetUpdates(CancellationToken cancelToken, IEnumerable<Guid> excludedPackageIds = null, bool immediatelyReleaseMetadata = false)
+		public async IAsyncEnumerable<MicrosoftUpdatePackage> GetUpdates(CancellationToken cancelToken, IEnumerable<Guid> excludedPackageIds = null)
         {
             excludedPackageIds ??= Array.Empty<Guid>();
 
-            var updatesList = new List<MicrosoftUpdatePackage>();
-
-            RetrievePackageIdentities();
+            await RetrievePackageIdentities();
 
 			var unavailableUpdates = _Identities
-                .Where(u => !excludedPackageIds.Any(e => u.ID == e))
-                .ToList();
+                .Where(u => !excludedPackageIds.Any(e => u.ID == e));
 
-            if (unavailableUpdates.Count > 0)
+            if (unavailableUpdates.Any())
             {
-                var batches = CreateBatchedListFromFlatList(unavailableUpdates, 50);
+                var batches = unavailableUpdates.Chunk(50);
 
-                var progressArgs = new PackageStoreEventArgs() { Total = unavailableUpdates.Count, Current = 0 };
-                batches.ForEach(batch =>
+                var progressArgs = new PackageStoreEventArgs() { Total = unavailableUpdates.Count(), Current = 0 };
+                foreach(var batch in batches)
                 {
                     if (cancelToken.IsCancellationRequested)
                     {
-                        return;
+                        break;
                     }
 
-                    var retrievedBatch = _Client.GetUpdateDataForIds(batch.ToList());
+					var retrievedBatch = _Client.GetUpdateDataForIds(batch);
 
-                    if (immediatelyReleaseMetadata)
+                    await foreach(var retrieved in retrievedBatch)
                     {
-                        retrievedBatch.ForEach(x => x.ReleaseMetadataBytes());
-                    }
+                        Interlocked.Increment(ref progressArgs.Current);
+						MetadataCopyProgress?.Invoke(this, progressArgs);
 
-                    lock (updatesList)
-                    {
-                        updatesList.AddRange(retrievedBatch);
+						yield return retrieved;
                     }
-
-                    lock (progressArgs)
-                    {
-                        progressArgs.Current += retrievedBatch.Count;
-                        MetadataCopyProgress?.Invoke(this, progressArgs);
-                    }
-                });
+				}
             }
 			else
 			{
 				MetadataCopyProgress?.Invoke(this, new PackageStoreEventArgs());
 			}
 
-			return updatesList;
+            yield return null;
 		}
 
 		/// <inheritdoc cref="IMetadataSource.CopyTo(IMetadataSink, CancellationToken)"/>
-		public void CopyTo(IMetadataSink destination, CancellationToken cancelToken)
+		public async Task CopyTo(IMetadataSink destination, CancellationToken cancelToken)
         {
-            RetrievePackageIdentities();
+            await RetrievePackageIdentities();
 
-            List<MicrosoftUpdatePackageIdentity> unavailableUpdates;
+            IEnumerable<MicrosoftUpdatePackageIdentity> unavailableUpdates;
 
             if (destination is IMetadataStore destinationBaseline)
             {
-                 unavailableUpdates = _Identities.Where(u => !destinationBaseline.ContainsPackage(u)).ToList();
+                 unavailableUpdates = _Identities.Where(u => !destinationBaseline.ContainsPackage(u));
             }
             else
             {
                 unavailableUpdates = _Identities;
             }
 
-            if (unavailableUpdates.Count > 0)
+            if (unavailableUpdates.Any())
             {
-                var progressArgs = new PackageStoreEventArgs() { Total = unavailableUpdates.Count, Current = 0 };
-                var batches = CreateBatchedListFromFlatList(unavailableUpdates, 50);
+                var progressArgs = new PackageStoreEventArgs() { Total = unavailableUpdates.Count(), Current = 0 };
+                var batches = unavailableUpdates.Chunk(50);
                 
                 MetadataCopyProgress?.Invoke(this, progressArgs);
-                batches.AsParallel().ForAll(batch =>
+                foreach(var batch in batches)
                 {
                     if (cancelToken.IsCancellationRequested)
                     {
-                        return;
+                        break;
                     }
 
-                    var retrievedPackages = _Client.GetUpdateDataForIds(batch.ToList());
-                    destination.AddPackages(retrievedPackages);
-                    retrievedPackages.ForEach(u => u.ReleaseMetadataBytes());
+                    var retrievedPackages = _Client.GetUpdateDataForIds(batch);
 
-                    lock(progressArgs)
+                    await foreach(var retrievedPackage in retrievedPackages)
                     {
-                        progressArgs.Current += retrievedPackages.Count;
-                        MetadataCopyProgress?.Invoke(this, progressArgs);
-                    }                    
-                });
+                        destination.AddPackage(retrievedPackage);
+
+						Interlocked.Increment(ref progressArgs.Current);
+						MetadataCopyProgress?.Invoke(this, progressArgs);
+					}                  
+                }
             }
 			else
 			{
@@ -192,14 +149,14 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
 		}
 
         /// <inheritdoc cref="IMetadataSource.CopyTo(IMetadataSink, IMetadataFilter, CancellationToken)"/>
-        public void CopyTo(IMetadataSink destination, IMetadataFilter filter, CancellationToken cancelToken)
+        public async Task CopyTo(IMetadataSink destination, IMetadataFilter filter, CancellationToken cancelToken)
         {
             if (filter is UpstreamSourceFilter categoriesFilter)
             {
                 _Filter = categoriesFilter;
             }
 
-            CopyTo(destination, cancelToken);
+            await CopyTo(destination, cancelToken);
         }
 
         /// <summary>
