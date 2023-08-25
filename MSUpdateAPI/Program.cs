@@ -9,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Set up logging
 builder.Logging.AddConsole();
+builder.Logging.AddAzureWebAppDiagnostics();
 
 // Add services to the container.
 builder.Services.AddControllers();

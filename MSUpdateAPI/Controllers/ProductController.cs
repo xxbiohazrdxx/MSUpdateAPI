@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MSUpdateAPI.Services;
+using System.ServiceModel.Channels;
 
 namespace MSUpdateAPI.Controllers
 {
@@ -16,18 +17,14 @@ namespace MSUpdateAPI.Controllers
 		[HttpGet]
 		public async Task<ActionResult> Get([FromQuery] bool ShowDisabled = false)
 		{
-			if (!service.MetadataLoaded)
-			{
-				var message = string.Format("Metadata is being refreshed: {0}", service.LastLogMessage);
-				return StatusCode(StatusCodes.Status503ServiceUnavailable, message);
-			}
-
 			if (ShowDisabled)
 			{
-				return Ok(await service.GetAllProducts());
+				var allProducts = await service.GetAllProducts();
+				return allProducts == null ? StatusCode(StatusCodes.Status503ServiceUnavailable) : Ok(allProducts);
 			}
 
-			return Ok(await service.GetProducts());
+			var products = await service.GetProducts();
+			return products == null ? StatusCode(StatusCodes.Status503ServiceUnavailable) : Ok(products);
 		}
 	}
 }

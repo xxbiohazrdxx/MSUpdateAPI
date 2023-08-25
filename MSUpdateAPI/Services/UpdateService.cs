@@ -3,12 +3,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.PackageGraph.MicrosoftUpdate.Metadata;
 using Microsoft.PackageGraph.MicrosoftUpdate.Metadata.Content;
+using Microsoft.PackageGraph.MicrosoftUpdate.Metadata.Handlers;
 using Microsoft.PackageGraph.MicrosoftUpdate.Source;
 using Microsoft.PackageGraph.Storage;
 using MSUpdateAPI.Configuration;
 using MSUpdateAPI.Data;
 using MSUpdateAPI.Models;
-using System.Timers;
 
 namespace MSUpdateAPI.Services
 {
@@ -21,18 +21,23 @@ namespace MSUpdateAPI.Services
 		private readonly ServiceConfiguration configuration;
 
 		// Throttle
-		private System.Timers.Timer throttleTimer;
+		private readonly System.Timers.Timer throttleTimer;
 		private static readonly TimeSpan throttleInterval = new(0, 2, 0);
-		private bool throttle { get; set; } = false;
+		private bool throttle = false;
 
-		public bool MetadataLoaded { get; private set; } = false;
+		public Status Status { get; private set; } = new Status();
 		public string LastLogMessage { get; private set; } = string.Empty;
-		private string logMessagePrefix { get; set; } = string.Empty;
+		private string logMessagePrefix = string.Empty;
 
 		public UpdateService(ILogger<UpdateService> Logger, IDbContextFactory<DatabaseContext> DbContextFactory, IOptions<ServiceConfiguration> Configuration)
 		{
 			logger = Logger;
 			dbContextFactory = DbContextFactory;
+
+			Status = new Status()
+			{
+				State = Status.Idle
+			};
 
 			throttleTimer = new System.Timers.Timer()
 			{
@@ -47,16 +52,33 @@ namespace MSUpdateAPI.Services
 
 		private void CopyProgress(object? sender, PackageStoreEventArgs e)
 		{
-			LastLogMessage = string.Format("{0}: {1}/{2}", logMessagePrefix, e.Current, e.Total);
+			Status.AddLogMessage(string.Format("{0}: {1}/{2}", logMessagePrefix, e.Current, e.Total));
 			logger.LogInformation("{LogMessagePrefix}: {Current}/{Total}", logMessagePrefix, e.Current, e.Total);
+		}
+
+		private void Throttle()
+		{
+			if (throttle)
+			{
+				Status.State = Status.Throttling;
+				Status.AddLogMessage("Self throttling for 2 minutes so as to not exceed quota");
+				logger.LogInformation("Self throttling for 2 minutes so as to not exceed quota");
+				Thread.Sleep(throttleInterval);
+
+				Status.State = Status.LoadingMetadata;
+				Status.AddLogMessage("Waking from self throttle");
+				logger.LogInformation("Waking from self throttle");
+				throttle = false;
+				throttleTimer.Interval = throttleInterval.TotalMilliseconds;
+			}
 		}
 
 		#region Metadata
 		internal async Task LoadMetadata(CancellationToken Token)
 		{
-			LastLogMessage = "Beginning metadata refresh";
+			Status.State = Status.LoadingMetadata;
+			Status.AddLogMessage("Beginning metadata refresh");
 			logger.LogInformation("Beginning metadata refresh");
-			MetadataLoaded = false;
 
 			#if !DEBUG
 			throttleTimer.Enabled = true;
@@ -66,19 +88,20 @@ namespace MSUpdateAPI.Services
 			await LoadUpdateMetadata(Token);
 
 			throttleTimer.Enabled = false;
-			MetadataLoaded = true;
-			LastLogMessage = "Metadata refresh complete";
+
+			Status.State = Status.Idle;
+			Status.AddLogMessage("Metadata refresh complete");
 			logger.LogInformation("Metadata refresh complete");
 		}
 
 		private async Task LoadProductAndCategoryMetadata(CancellationToken Token)
 		{
-			logMessagePrefix = "Loading product and category metadata";
+			logMessagePrefix = "Loading classification metadata";
 
-			using var dbContext = await dbContextFactory.CreateDbContextAsync();
-			var allExistingCategories = await dbContext.Categories.ToListAsync();
-			var allExistingProducts = await dbContext.Products.ToListAsync();
-			var allExistingDetectoids = await dbContext.Detectoids.ToListAsync();
+			using var dbContext = await dbContextFactory.CreateDbContextAsync(Token);
+			var allExistingCategories = await dbContext.Categories.ToListAsync(Token);
+			var allExistingProducts = await dbContext.Products.ToListAsync(Token);
+			var allExistingDetectoids = await dbContext.Detectoids.ToListAsync(Token);
 
 			UpstreamCategoriesSource categoriesSource = new(Microsoft.PackageGraph.MicrosoftUpdate.Source.Endpoint.Default);
 			categoriesSource.MetadataCopyProgress += CopyProgress;
@@ -89,25 +112,19 @@ namespace MSUpdateAPI.Services
 					.Concat(allExistingProducts.Select(x => x.Id))
 					.Concat(allExistingDetectoids.Select(x => x.Id)));
 
-			LastLogMessage = "Processing classification metadata";
+			Status.AddLogMessage("Processing classification metadata");
+			Status.CategoryCount = allExistingCategories.Count;
+			Status.ProductCount = allExistingProducts.Count;
+			Status.DetectoidCount = allExistingDetectoids.Count;
 			logger.LogInformation("Processing classification metadata");
-			logger.LogInformation("Existing db category count: {existingCategoryCount}", allExistingCategories.Count);
-			logger.LogInformation("Existing db product count: {existingProductCount}", allExistingProducts.Count);
-			logger.LogInformation("Existing db detectoid count: {existingDetectoidCount}", allExistingDetectoids.Count);
+			logger.LogInformation("Existing db classification count: C: {existingCategoryCount}, P: {existingProductCount}, D: {existingDetectoidCount}", 
+				allExistingCategories.Count,
+				allExistingProducts.Count, 
+				allExistingDetectoids.Count);
 
 			await foreach (var currentClassification in allClassificationCategories)
 			{
-				if (throttle)
-				{
-					LastLogMessage = "Self throttling for 2 minutes so as to not exceed quota";
-					logger.LogInformation("Self throttling for 2 minutes so as to not exceed quota");
-					Thread.Sleep(throttleInterval);
-
-					throttle = false;
-					throttleTimer.Interval = throttleInterval.TotalMilliseconds;
-				}
-
-				logger.LogInformation("Added classification: {Id}:{Revision} - {Title}", currentClassification.Id.ID, currentClassification.Id.Revision, currentClassification.Title);
+				Throttle();
 				
 				if (currentClassification is ClassificationCategory)
 				{
@@ -115,7 +132,9 @@ namespace MSUpdateAPI.Services
 					{
 						Id = currentClassification.Id.ID,
 						Name = currentClassification.Title
-					});
+					}, Token);
+
+					Status.CategoryCount++;
 				}
 				else if (currentClassification is ProductCategory)
 				{
@@ -125,7 +144,9 @@ namespace MSUpdateAPI.Services
 						Revision = currentClassification.Id.Revision,
 						Name = currentClassification.Title,
 						Categories = currentClassification.Categories?.Select(y => y.ToString()).ToList() ?? new List<string>()
-					});
+					}, Token);
+
+					Status.ProductCount++;
 				}
 				// While we don't actually use detectoids, storing them in the database reduces delta metadata sync time
 				else if (currentClassification is DetectoidCategory)
@@ -135,14 +156,21 @@ namespace MSUpdateAPI.Services
 						Id = currentClassification.Id.ID,
 						Revision = currentClassification.Id.Revision,
 						Name = currentClassification.Title
-					});
+					}, Token);
+
+					Status.DetectoidCount++;
 				}
 				else
 				{
 					break;
 				}
 
-				await dbContext.SaveChangesAsync();
+				await dbContext.SaveChangesAsync(Token);
+
+				logger.LogTrace("Added classification: {Id}:{Revision} - {Title}",
+					currentClassification.Id.ID,
+					currentClassification.Id.Revision,
+					currentClassification.Title);
 			}
 		}
 
@@ -150,10 +178,10 @@ namespace MSUpdateAPI.Services
 		{
 			logMessagePrefix = "Loading update metadata";
 
-			using var dbContext = await dbContextFactory.CreateDbContextAsync();
-			var allExistingUpdates = dbContext.Updates.ToList();
-			var allProducts = dbContext.Products.ToList();
-			var allCategories = dbContext.Categories.ToList();
+			using var dbContext = await dbContextFactory.CreateDbContextAsync(Token);
+			var allExistingUpdates = await dbContext.Updates.ToListAsync(Token);
+			var allProducts = await dbContext.Products.ToListAsync(Token);
+			var allCategories = await dbContext.Categories.ToListAsync(Token);
 
 			var updatesFilter = new UpstreamSourceFilter();
 			updatesFilter
@@ -168,24 +196,25 @@ namespace MSUpdateAPI.Services
 
 			var allUpdates = updatesSource.GetUpdates(Token, allExistingUpdates.Select(x => x.Id));
 
-			LastLogMessage = "Processing update metadata";
+			Status.AddLogMessage("Processing update metadata");
+			Status.UpdateCount = allExistingUpdates.Count;
 			logger.LogInformation("Processing update metadata");
 			logger.LogInformation("Existing db update count: {existingUpdateCount}", allExistingUpdates.Count);
 
+			var bundledList = new Dictionary<Guid, IEnumerable<Guid>>();
+
 			await foreach (var current in allUpdates)
 			{
-				if (throttle)
-				{
-					logger.LogInformation("Self throttling for 2 minutes so as to not exceed quota");
-					Thread.Sleep(throttleInterval);
-
-					throttle = false;
-					throttleTimer.Interval = throttleInterval.TotalMilliseconds;
-				}
+				Throttle();
 
 				if (current is not SoftwareUpdate currentUpdate)
 				{
 					break;
+				}
+
+				if (currentUpdate.BundledUpdates.Count > 0)
+				{
+					bundledList.Add(currentUpdate.Id.ID, currentUpdate.BundledUpdates.Select(x => x.ID));
 				}
 
 				var newUpdate = new Update()
@@ -234,11 +263,57 @@ namespace MSUpdateAPI.Services
 						.ToList()
 				};
 
-				await dbContext.Updates.AddAsync(newUpdate);
-				await dbContext.SaveChangesAsync();
+				Status.UpdateCount++;
+
+				await dbContext.Updates.AddAsync(newUpdate, Token);
+				await dbContext.SaveChangesAsync(Token);
+
+				logger.LogTrace("Added update: {Id}:{Revision} - {Title}",
+					currentUpdate.Id.ID,
+					currentUpdate.Id.Revision,
+					currentUpdate.Title);
+			}
+
+			Status.AddLogMessage("Processing bundled update file lists");
+			logger.LogInformation("Processing bundled update file lists");
+			logger.LogInformation("Bundled update count: {bundledUpdateCount}", bundledList.Count);
+
+			int bundleProgress = 1;
+			foreach (var currentBundle in bundledList)
+			{
+				Status.AddLogMessage(string.Format("Processing bundled update file lists: {0}/{1}", bundleProgress, bundledList.Count));
+				logger.LogInformation("Processing bundled update file lists: {Current}/{Total}", bundleProgress, bundledList.Count);
+
+				var update = await dbContext.Updates
+					.Where(x => x.Id == currentBundle.Key)
+					.SingleAsync(Token);
+
+				var bundledUpdateFiles = await dbContext.Updates
+					.Where(x => currentBundle.Value.Any(y => y == x.Id))
+					.ToListAsync(Token);
+
+				update.Files = bundledUpdateFiles
+					.SelectMany(x => x.Files)
+					.Select(x => new Models.File()
+					{
+						FileName = x.FileName,
+						Source = x.Source,
+						ModifiedDate = x.ModifiedDate,
+						Digest = new FileDigest()
+						{
+							Algorithm = x.Digest.Algorithm,
+							Value = x.Digest.Value
+						},
+						Size = x.Size
+					})
+					.ToList();
+				await dbContext.SaveChangesAsync(Token);
+
+				logger.LogTrace("Added bundled files: {Id} - {Title}", update.Id, update.Title);
+				bundleProgress++;
 			}
 		}
-#endregion Metadata
+		#endregion Metadata
 
 		#region Updates
 		internal async Task<IEnumerable<Update>> GetUpdates(Guid? Classification, Guid? Product, string? SearchString)
@@ -313,6 +388,11 @@ namespace MSUpdateAPI.Services
 		{
 			var allProducts = await GetAllProducts();
 
+			if (allProducts is null)
+			{
+				return null!;
+			}
+
 			RemoveDisabledSubproducts(allProducts);
 			return allProducts;
 		}
@@ -322,7 +402,13 @@ namespace MSUpdateAPI.Services
 			using var dbContext = await dbContextFactory.CreateDbContextAsync();
 			var allProducts = await dbContext.Products.ToListAsync();
 
-			var rootProduct = allProducts.Where(x => !x.Categories.Any()).Single();
+			var rootProduct = allProducts.Where(x => !x.Categories.Any()).SingleOrDefault();
+
+			if (rootProduct is null)
+			{
+				return null!;
+			}
+
 			var allSubproducts = allProducts.Where(x => x.Categories.Any()).ToList();
 
 			rootProduct.Enabled = false;
