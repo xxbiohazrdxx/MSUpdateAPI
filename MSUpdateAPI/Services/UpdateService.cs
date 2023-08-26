@@ -22,7 +22,7 @@ namespace MSUpdateAPI.Services
 
 		// Throttle
 		private readonly System.Timers.Timer throttleTimer;
-		private static readonly TimeSpan throttleInterval = new(0, 2, 0);
+		private static readonly TimeSpan throttleInterval = new(0, 2, 30);
 		private bool throttle = false;
 
 		public Status Status { get; private set; } = new Status();
@@ -61,8 +61,8 @@ namespace MSUpdateAPI.Services
 			if (throttle)
 			{
 				Status.State = Status.Throttling;
-				Status.AddLogMessage("Self throttling for 2 minutes so as to not exceed quota");
-				logger.LogInformation("Self throttling for 2 minutes so as to not exceed quota");
+				Status.AddLogMessage("Self throttling for 150 seconds so as to not exceed quota");
+				logger.LogInformation("Self throttling for 150 seconds so as to not exceed quota");
 				Thread.Sleep(throttleInterval);
 
 				Status.State = Status.LoadingMetadata;
