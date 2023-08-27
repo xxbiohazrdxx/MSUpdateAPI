@@ -1,9 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.PackageGraph.MicrosoftUpdate.Metadata;
 using Microsoft.PackageGraph.MicrosoftUpdate.Metadata.Content;
-using Microsoft.PackageGraph.MicrosoftUpdate.Metadata.Handlers;
 using Microsoft.PackageGraph.MicrosoftUpdate.Source;
 using Microsoft.PackageGraph.Storage;
 using MSUpdateAPI.Configuration;
