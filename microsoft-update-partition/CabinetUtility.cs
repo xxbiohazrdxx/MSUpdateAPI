@@ -77,48 +77,31 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Compression
             // We use temporary files to write the in-memory cabinet,
             // Then run cabextract on it with --pipe output
             var cabTempFile = Path.GetTempFileName();
+			byte[] returnBytes;
 
-            var inMemoryStream = new MemoryStream();
-            try
+            File.WriteAllBytes(cabTempFile, compressedData);
+
+            var startInfo = new ProcessStartInfo("cabextract", $"--pipe \"{cabTempFile}\"")
             {
-                File.WriteAllBytes(cabTempFile, compressedData);
+                UseShellExecute = false,
+                // The decompressed text is Unicode
+                StandardOutputEncoding = Encoding.Unicode,
+                RedirectStandardOutput = true
+            };
+            var expandProcess = Process.Start(startInfo);
 
-                var startInfo = new ProcessStartInfo("cabextract", $"--pipe \"{cabTempFile}\"")
-                {
-                    UseShellExecute = false,
-                    // The decompressed text is Unicode
-                    StandardOutputEncoding = Encoding.Unicode,
-                    RedirectStandardOutput = true
-                };
-                var expandProcess = Process.Start(startInfo);
+            // Read the decompressed data from the pipe
+            var text = expandProcess.StandardOutput.ReadToEnd();
+            expandProcess.WaitForExit();
 
-                // Read the decompressed data from the pipe
-                var text = expandProcess.StandardOutput.ReadToEnd();
-                expandProcess.WaitForExit();
+			// Recompress the XML with GZIP as UTF8
+			returnBytes = File.ReadAllBytes(cabTempFile);
 
-                // Recompress the XML with GZIP as UTF8
-                using var recompressor = new GZipStream(inMemoryStream, CompressionLevel.Fastest, true);
-                recompressor.Write(Encoding.UTF8.GetBytes(text));
-
-            }
-            catch (Exception)
-            {
-                inMemoryStream = null;
-            }
-
-            if (File.Exists(cabTempFile))
-            {
-                File.Delete(cabTempFile);
-            }
-
-            if (inMemoryStream != null)
-            {
-                return inMemoryStream.ToArray();
-            }
-            else
-            {
-                return null;
-            }
+			if (File.Exists(cabTempFile))
+			{
+				File.Delete(cabTempFile);
+			}
+			return returnBytes;
         }
 
         /// <summary>
