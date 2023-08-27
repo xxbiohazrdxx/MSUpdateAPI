@@ -13,7 +13,7 @@ namespace MSUpdateAPI.Models
 		public OwnedCategory? Classification { get; set; }
 		public List<File> Files { get; set; }
 
-
+		// EF Core for Cosmos only supports collections of primitives, which is why we ToString our GUIDs
 		[JsonIgnore]
 		public List<string> BundledUpdates { get; set; }
 		[JsonIgnore]

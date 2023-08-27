@@ -39,6 +39,7 @@ namespace MSUpdateAPI.Services
 				State = Status.Idle
 			};
 
+			// Set up the throttle timer but leave it disabled. Use an anonymous method to set throttle to true when the Elasped event is invoked
 			throttleTimer = new System.Timers.Timer()
 			{
 				Interval = throttleInterval.TotalMilliseconds,
@@ -56,6 +57,7 @@ namespace MSUpdateAPI.Services
 			logger.LogInformation("{LogMessagePrefix}: {Current}/{Total}", logMessagePrefix, e.Current, e.Total);
 		}
 
+		// When called, checks to see if the application should be in a throttling state, if so the execution thread is put to sleep for the throttle duration
 		private void Throttle()
 		{
 			if (throttle)
@@ -74,6 +76,7 @@ namespace MSUpdateAPI.Services
 		}
 
 		#region Metadata
+		// Activates the trottle timer and begins metadata downloads from the upstream source
 		internal async Task LoadMetadata(CancellationToken Token)
 		{
 			Status.State = Status.LoadingMetadata;
@@ -84,7 +87,7 @@ namespace MSUpdateAPI.Services
 			throttleTimer.Enabled = true;
 			#endif
 
-			await LoadProductAndCategoryMetadata(Token);
+			await LoadClassificationMetadata(Token);
 			await LoadUpdateMetadata(Token);
 
 			throttleTimer.Enabled = false;
@@ -94,7 +97,8 @@ namespace MSUpdateAPI.Services
 			logger.LogInformation("Metadata refresh complete");
 		}
 
-		private async Task LoadProductAndCategoryMetadata(CancellationToken Token)
+		// Begin downloading classification (categories, products, and detectoids) metadata, and inserting it as it becomes available
+		private async Task LoadClassificationMetadata(CancellationToken Token)
 		{
 			logMessagePrefix = "Loading classification metadata";
 
@@ -106,6 +110,7 @@ namespace MSUpdateAPI.Services
 			UpstreamCategoriesSource categoriesSource = new(Microsoft.PackageGraph.MicrosoftUpdate.Source.Endpoint.Default);
 			categoriesSource.MetadataCopyProgress += CopyProgress;
 
+			// Existing IDs from the database can be passed to the upstream source, those IDs will be ignored and not downloaded/processed again
 			var allClassificationCategories = categoriesSource
 				.GetCategories(Token,
 					 allExistingCategories.Select(x => x.Id)
@@ -122,10 +127,13 @@ namespace MSUpdateAPI.Services
 				allExistingProducts.Count, 
 				allExistingDetectoids.Count);
 
+			
+			// Iterate through all of the metadata returned by the upstream source
 			await foreach (var currentClassification in allClassificationCategories)
 			{
 				Throttle();
 				
+				// Depending on the type of the MicrosoftUpdatePackage, create the entity type and insert into the correct container
 				if (currentClassification is ClassificationCategory)
 				{
 					await dbContext.Categories.AddAsync(new Category()
@@ -174,6 +182,7 @@ namespace MSUpdateAPI.Services
 			}
 		}
 
+		// Begin downloading update metadata, and inserting it as it becomes available
 		private async Task LoadUpdateMetadata(CancellationToken Token)
 		{
 			logMessagePrefix = "Loading update metadata";
@@ -183,6 +192,7 @@ namespace MSUpdateAPI.Services
 			var allProducts = await dbContext.Products.ToListAsync(Token);
 			var allCategories = await dbContext.Categories.ToListAsync(Token);
 
+			// Filter so only the particular types and products wanted will be downloaded and processed
 			var updatesFilter = new UpstreamSourceFilter();
 			updatesFilter
 				.ProductsFilter
@@ -194,6 +204,7 @@ namespace MSUpdateAPI.Services
 			UpstreamUpdatesSource updatesSource = new(Microsoft.PackageGraph.MicrosoftUpdate.Source.Endpoint.Default, updatesFilter);
 			updatesSource.MetadataCopyProgress += CopyProgress;
 
+			// Existing IDs from the database can be passed to the upstream source, those IDs will be ignored and not downloaded/processed again
 			var allUpdates = updatesSource.GetUpdates(Token, allExistingUpdates.Select(x => x.Id));
 
 			Status.AddLogMessage("Processing update metadata");
@@ -203,6 +214,7 @@ namespace MSUpdateAPI.Services
 
 			var bundledList = new Dictionary<Guid, IEnumerable<Guid>>();
 
+			// Iterate through all of the metadata returned by the upstream source
 			await foreach (var current in allUpdates)
 			{
 				Throttle();
@@ -211,7 +223,9 @@ namespace MSUpdateAPI.Services
 				{
 					break;
 				}
-
+				
+				// Some updates will not have any file information and will instead have that metadata contained inside of a "bundled update"
+				// If this update contains any bundled updates, save that metadata in a Dictionary for additional processing after this step
 				if (currentUpdate.BundledUpdates.Count > 0)
 				{
 					bundledList.Add(currentUpdate.Id.ID, currentUpdate.BundledUpdates.Select(x => x.ID));
@@ -278,6 +292,7 @@ namespace MSUpdateAPI.Services
 			logger.LogInformation("Processing bundled update file lists");
 			logger.LogInformation("Bundled update count: {bundledUpdateCount}", bundledList.Count);
 
+			// Iterate through all updates that have bundled updates, copying the files from the bundled update to the primary update entity
 			int bundleProgress = 1;
 			foreach (var currentBundle in bundledList)
 			{
@@ -409,10 +424,9 @@ namespace MSUpdateAPI.Services
 				return null!;
 			}
 
-			var allSubproducts = allProducts.Where(x => x.Categories.Any()).ToList();
-
 			rootProduct.Enabled = false;
 
+			var allSubproducts = allProducts.Where(x => x.Categories.Any()).ToList();
 			rootProduct.Subproducts.AddRange(GetSubproducts(allSubproducts, rootProduct));
 
 			return rootProduct;

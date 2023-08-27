@@ -18,6 +18,8 @@ namespace MSUpdateAPI.Models
 
 		public Status() { }
 
+		// This keeps a rolling list of the last 10 messages logged. When a new log is received, move all exiting messages into the next index of the array
+		// then insert the new log message into index 0
 		public void AddLogMessage(string Message)
 		{
 			Array.Copy(RecentLogs, 0, RecentLogs, 1, 9);

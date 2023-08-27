@@ -48,6 +48,7 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
+// Get the database configuration, and create the database if it does not already exist
 using (var scope = app.Services.CreateScope())
 {
 	try
