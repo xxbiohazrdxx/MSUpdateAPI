@@ -33,9 +33,9 @@ namespace MSUpdateAPI.Controllers
 
 		[HttpGet]
 		public async Task<ActionResult> Get([FromQuery]Guid? Category = null, [FromQuery]Guid? Product = null, 
-			[FromQuery] string? SearchString = null)
+			[FromQuery] string? Query = null)
 		{
-			return Ok(await service.GetUpdates(Category, Product, SearchString));
+			return Ok(await service.GetUpdates(Category, Product, Query));
 		}
 	}
 }
