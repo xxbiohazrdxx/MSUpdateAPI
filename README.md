@@ -78,13 +78,11 @@ Easily check the state of the application
 Lists the update categories enabled, or optionally all categories in the database
 
 #### Request
+
 `GET /api/category`
 
-or
-
-`GET /api/category?ShowDisabled=true` 
-
 #### Response
+
 ```json
 [
   {
@@ -94,18 +92,26 @@ or
 ]
 ```
 
+#### Optional Parameters
+
+| Name         | Type | Purpose                                                                                    |
+|--------------|------|--------------------------------------------------------------------------------------------|
+| ShowDisabled | bool | Request will return all categories in the database, instead of just those that are enabled |
+
+##### Example
+
+`GET /api/category?ShowDisabled=true` 
+
 ### Products
 
 Lists the products enabled, or optionally all products in the database. Note that products are represented in a tree like structure with the root node always being `Microsoft`. The root node contains groupings for entire product lines, e.g. `Windows`.
 
 #### Request
+
 `GET /api/product`
 
-or
-
-`GET /api/product?ShowDisabled=true` 
-
 #### Response
+
 ```json
 {
   "id": "56309036-4c77-4dd9-951a-99ee9c246a94",
@@ -140,6 +146,16 @@ or
   ]
 }
 ```
+
+#### Optional Parameters
+
+| Name         | Type | Purpose                                                                                  |
+|--------------|------|------------------------------------------------------------------------------------------|
+| ShowDisabled | bool | Request will return all products in the database, instead of just those that are enabled |
+
+##### Example
+
+`GET /api/product?ShowDisabled=true` 
 
 ### Updates
 
@@ -183,6 +199,18 @@ Lists the updates that match the enabled categories and products.
 ...
 ]
 ```
+
+#### Optional Parameters
+
+| Name     | Type   | Purpose                                                                                 |
+|----------|--------|-----------------------------------------------------------------------------------------|
+| Category | GUID   | Filters updates to those matching the provided category GUID                            |
+| Product  | GUID   | Filters updates to those matching the provided product GUID                             |
+| Query    | string | Filters updates to those containing the provided string in the title (case insensitive) |
+
+##### Example
+
+`GET /api/update?Category=0fa1201d-4330-4fa8-8ae9-b877473b6441&Product=2c7888b6-f9e9-4ee9-87af-a77705193893&Query=x64`
 
 ## License
 
