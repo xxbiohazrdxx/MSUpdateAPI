@@ -329,7 +329,7 @@ namespace MSUpdateAPI.Services
 		#endregion Metadata
 
 		#region Updates
-		internal async Task<IEnumerable<Update>> GetUpdates(Guid? Classification, Guid? Product, string? SearchString)
+		internal async Task<IEnumerable<Update>> GetUpdates(Guid? Category, Guid? Product, string? SearchString)
 		{
 			using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
@@ -341,7 +341,7 @@ namespace MSUpdateAPI.Services
 						"SELECT * FROM x WHERE CONTAINS(x.Title, {0}, true)", SearchString!)
 					// x.Classification can be null, which would generally throw a null reference exception. However, since this is 
 					// translated and evaluated by the database, it effectively becomes "null == Classification.Value" in that scenario
-					.Where(x => !Classification.HasValue || x.Classification!.Id == Classification.Value)
+					.Where(x => !Category.HasValue || x.Classification!.Id == Category.Value)
 					.OrderByDescending(x => x.CreationDate)
 					.ToListAsync();
 

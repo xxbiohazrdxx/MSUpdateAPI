@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MSUpdateAPI.Services;
-using System.ServiceModel.Channels;
 
 namespace MSUpdateAPI.Controllers
 {
