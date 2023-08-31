@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using MSUpdateAPI.Configuration;
 using MSUpdateAPI.Services;
+using UpdateLib.Configuration;
 using UpdateLib.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,7 +16,6 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.Configure<ServiceConfiguration>(builder.Configuration.GetSection("Configuration"));
 builder.Services.Configure<DatabaseConfiguration>(builder.Configuration.GetSection("DatabaseConfiguration"));
 
 builder.Services.AddSingleton<UpdateService>();

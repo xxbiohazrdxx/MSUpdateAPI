@@ -100,8 +100,9 @@ namespace UpdateProcessor
 					await dbContext.Categories.AddAsync(new Category()
 					{
 						Id = currentClassification.Id.ID,
-						Name = currentClassification.Title
-					}, Token);
+						Name = currentClassification.Title,
+						Enabled = configuration.EnabledCategories.Contains(currentClassification.Id.ID)
+					}, Token);;
 
 					Status.CategoryCount++;
 				}
@@ -112,6 +113,7 @@ namespace UpdateProcessor
 						Id = currentClassification.Id.ID,
 						Revision = currentClassification.Id.Revision,
 						Name = currentClassification.Title,
+						Enabled = configuration.EnabledProducts.Contains(currentClassification.Id.ID),
 						Categories = currentClassification.Categories?.Select(y => y.ToString()).ToList() ?? new List<string>()
 					}, Token);
 

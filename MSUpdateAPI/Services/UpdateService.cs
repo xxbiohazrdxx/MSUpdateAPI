@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using MSUpdateAPI.Configuration;
+using UpdateLib.Configuration;
 using UpdateLib.Data;
 using UpdateLib.Models;
 
@@ -12,13 +12,10 @@ namespace MSUpdateAPI.Services
 		private readonly ILogger logger;
 		private readonly IDbContextFactory<DatabaseContext> dbContextFactory;
 
-		private readonly ServiceConfiguration configuration;
-
-		public UpdateService(ILogger<UpdateService> Logger, IDbContextFactory<DatabaseContext> DbContextFactory, IOptions<ServiceConfiguration> Configuration)
+		public UpdateService(ILogger<UpdateService> Logger, IDbContextFactory<DatabaseContext> DbContextFactory)
 		{
 			logger = Logger;
 			dbContextFactory = DbContextFactory;
-			configuration = Configuration.Value;
 		}
 
 		internal bool GetStatus()
@@ -82,7 +79,7 @@ namespace MSUpdateAPI.Services
 		{
 			var allCategories = await GetAllCategories();
 
-			return allCategories.Where(x => configuration.EnabledCategories.Contains(x.Id)).ToList();
+			return allCategories.Where(x => x.Enabled).ToList();
 		}
 
 		internal async Task<List<Category>> GetAllCategories()
@@ -136,7 +133,7 @@ namespace MSUpdateAPI.Services
 			  {
 				  Id = x.Id,
 				  Name = x.Name,
-				  Enabled = configuration.EnabledProducts.Contains(x.Id)
+				  Enabled = x.Enabled
 			  })
 			  .ToList();
 
