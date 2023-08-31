@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33815.320
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MSUpdateAPI", "MSUpdateAPI\MSUpdateAPI.csproj", "{DA6393AA-A935-4966-AB00-B27F39127411}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpdateAPI", "MSUpdateAPI\UpdateAPI.csproj", "{DA6393AA-A935-4966-AB00-B27F39127411}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "microsoft-update-partition", "microsoft-update-partition\microsoft-update-partition.csproj", "{86E30023-704B-45EE-A904-762F8FE2F0E8}"
 EndProject
