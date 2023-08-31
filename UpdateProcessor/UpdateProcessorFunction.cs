@@ -175,21 +175,12 @@ namespace UpdateProcessor
 			logger.LogInformation("Processing update metadata");
 			logger.LogInformation("Existing db update count: {existingUpdateCount}", allExistingUpdates.Count);
 
-			var bundledList = new Dictionary<Guid, IEnumerable<Guid>>();
-
 			// Iterate through all of the metadata returned by the upstream source
 			await foreach (var current in allUpdates)
 			{
 				if (current is not SoftwareUpdate currentUpdate)
 				{
 					break;
-				}
-
-				// Some updates will not have any file information and will instead have that metadata contained inside of a "bundled update"
-				// If this update contains any bundled updates, save that metadata in a Dictionary for additional processing after this step
-				if (currentUpdate.BundledUpdates.Count > 0)
-				{
-					bundledList.Add(currentUpdate.Id.ID, currentUpdate.BundledUpdates.Select(x => x.ID));
 				}
 
 				var newUpdate = new Update()
@@ -251,21 +242,24 @@ namespace UpdateProcessor
 
 			Status.AddLogMessage("Processing bundled update file lists");
 			logger.LogInformation("Processing bundled update file lists");
-			logger.LogInformation("Bundled update count: {bundledUpdateCount}", bundledList.Count);
 
 			// Iterate through all updates that have bundled updates, copying the files from the bundled update to the primary update entity
+			var allBundledUpdates = await dbContext.Updates
+				.Where(x => x.BundledUpdates.Any())
+				.ToListAsync(Token);
+
 			int bundleProgress = 1;
-			foreach (var currentBundle in bundledList)
+			foreach (var currentBundle in allBundledUpdates)
 			{
-				Status.AddLogMessage(string.Format("Processing bundled update file lists: {0}/{1}", bundleProgress, bundledList.Count));
-				logger.LogInformation("Processing bundled update file lists: {Current}/{Total}", bundleProgress, bundledList.Count);
+				Status.AddLogMessage(string.Format("Processing bundled update file lists: {0}/{1}", bundleProgress, allBundledUpdates.Count));
+				logger.LogInformation("Processing bundled update file lists: {Current}/{Total}", bundleProgress, allBundledUpdates.Count);
 
 				var update = await dbContext.Updates
-					.Where(x => x.Id == currentBundle.Key)
+					.Where(x => x.Id == currentBundle.Id)
 					.SingleAsync(Token);
 
 				var bundledUpdateFiles = await dbContext.Updates
-					.Where(x => currentBundle.Value.Any(y => y == x.Id))
+					.Where(x => currentBundle.BundledUpdates.Any(y => y == x.Id.ToString()))
 					.ToListAsync(Token);
 
 				update.Files = bundledUpdateFiles
@@ -283,6 +277,9 @@ namespace UpdateProcessor
 						Size = x.Size
 					})
 					.ToList();
+
+				update.BundledUpdates = new List<string>();
+
 				await dbContext.SaveChangesAsync(Token);
 
 				logger.LogTrace("Added bundled files: {Id} - {Title}", update.Id, update.Title);
