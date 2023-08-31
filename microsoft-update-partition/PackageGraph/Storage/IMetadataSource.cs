@@ -5,14 +5,13 @@ using Microsoft.PackageGraph.ObjectModel;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 
 namespace Microsoft.PackageGraph.Storage
 {
-    /// <summary>
-    /// Progress base class for various operations in a metadata store
-    /// </summary>
-    public class PackageStoreEventArgs : EventArgs
+	/// <summary>
+	/// Progress base class for various operations in a metadata store
+	/// </summary>
+	public class PackageStoreEventArgs : EventArgs
     {
         /// <summary>
         /// Operation total value

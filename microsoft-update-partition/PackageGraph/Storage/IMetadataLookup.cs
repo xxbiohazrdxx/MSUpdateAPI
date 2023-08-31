@@ -2,16 +2,15 @@
 // Licensed under the MIT License.
 
 using Microsoft.PackageGraph.ObjectModel;
-using Microsoft.PackageGraph.Storage.Index;
 using System;
 using System.Collections.Generic;
 
 namespace Microsoft.PackageGraph.Storage
 {
-    /// <summary>
-    /// Interface implemented by metadata stores that support metadata indexed lookups.
-    /// </summary>
-    interface IMetadataLookup
+	/// <summary>
+	/// Interface implemented by metadata stores that support metadata indexed lookups.
+	/// </summary>
+	interface IMetadataLookup
     {
         /// <summary>
         /// Query an index by package identity for simple typed data.

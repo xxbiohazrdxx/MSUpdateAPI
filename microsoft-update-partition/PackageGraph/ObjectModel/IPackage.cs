@@ -1,15 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
-using System.Text;
 
 namespace Microsoft.PackageGraph.ObjectModel
 {
-    /// <summary>
-    /// Generic interface for inspecting metadata associated with updates originating from Microsoft Update.
-    /// Objects that implement this interfaces should be cast to their specialized types to obtain type specific metadata.
-    /// </summary>
-    public interface IPackage
+	/// <summary>
+	/// Generic interface for inspecting metadata associated with updates originating from Microsoft Update.
+	/// Objects that implement this interfaces should be cast to their specialized types to obtain type specific metadata.
+	/// </summary>
+	public interface IPackage
     {
         /// <summary>
         /// Get the package's identity

@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using MSUpdateAPI.Models;
+using UpdateLib.Models;
 
-namespace MSUpdateAPI.Data
+namespace UpdateLib.Data
 {
 	public class DatabaseContext : DbContext
 	{

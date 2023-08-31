@@ -2,17 +2,14 @@
 // Licensed under the MIT License.
 
 using Microsoft.PackageGraph.MicrosoftUpdate.Index;
-using Microsoft.PackageGraph.Partitions;
 using Microsoft.PackageGraph.Storage.Index;
-using System;
-using System.Collections.Generic;
 
 namespace Microsoft.PackageGraph.MicrosoftUpdate
 {
-    /// <summary>
-    /// Registers Microsoft Update as a source for packages metadata.
-    /// </summary>
-    abstract class MicrosoftUpdatePartitionRegistration
+	/// <summary>
+	/// Registers Microsoft Update as a source for packages metadata.
+	/// </summary>
+	abstract class MicrosoftUpdatePartitionRegistration
     {
         internal const string MicrosoftUpdatePartitionName = "MicrosoftUpdate";
 

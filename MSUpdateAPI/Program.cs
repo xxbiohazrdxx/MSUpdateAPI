@@ -2,8 +2,8 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MSUpdateAPI.Configuration;
-using MSUpdateAPI.Data;
 using MSUpdateAPI.Services;
+using UpdateLib.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,7 +20,6 @@ builder.Services.Configure<ServiceConfiguration>(builder.Configuration.GetSectio
 builder.Services.Configure<DatabaseConfiguration>(builder.Configuration.GetSection("DatabaseConfiguration"));
 
 builder.Services.AddSingleton<UpdateService>();
-builder.Services.AddHostedService<MetadataBackgroundService>();
 
 builder.Services.AddDbContextFactory<DatabaseContext>((IServiceProvider serviceProvider, DbContextOptionsBuilder options) =>
 {
@@ -29,11 +28,6 @@ builder.Services.AddDbContextFactory<DatabaseContext>((IServiceProvider serviceP
 #if DEBUG
 	options.EnableSensitiveDataLogging();
 #endif
-});
-builder.Services.AddDbContext<DatabaseContext>((IServiceProvider serviceProvider, DbContextOptionsBuilder options) =>
-{
-	var databaseConfiguration = serviceProvider.GetRequiredService<IOptions<DatabaseConfiguration>>().Value;
-	options.UseCosmos(databaseConfiguration.Uri, databaseConfiguration.PrimaryKey, databaseConfiguration.DatabaseName);
 });
 
 builder.Services.AddRateLimiter(options =>
@@ -47,22 +41,6 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
-
-// Get the database configuration, and create the database if it does not already exist
-using (var scope = app.Services.CreateScope())
-{
-	try
-	{
-		var context = scope.ServiceProvider.GetRequiredService<DatabaseContext>();
-		context.Database.EnsureCreated();
-	}
-	catch (Exception ex)
-	{
-		var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-		logger.LogError(ex, "An error occured creating the database");
-		throw;
-	}
-}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

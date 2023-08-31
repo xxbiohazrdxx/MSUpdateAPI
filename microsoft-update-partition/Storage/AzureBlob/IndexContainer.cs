@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using ICSharpCode.SharpZipLib.Zip;
 using Microsoft.Azure.Storage.Blob;
 using Microsoft.PackageGraph.ObjectModel;
 using Microsoft.PackageGraph.Partitions;
@@ -16,7 +15,7 @@ using System.Text;
 
 namespace Microsoft.PackageGraph.Storage.Azure
 {
-    class IndexContainer : IIndexStreamContainer
+	class IndexContainer : IIndexStreamContainer
     {
         Dictionary<string, IIndex> Indexes;
         List<IndexDefinition> UnknownIndexes;

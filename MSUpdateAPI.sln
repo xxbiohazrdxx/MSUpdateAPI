@@ -11,6 +11,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "microsoft-update-upstream-s
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "microsoft-update-webservices", "microsoft-update-webservices\microsoft-update-webservices.csproj", "{F1EE4890-6C8F-4E23-A2E7-FED5CA115466}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UpdateProcessor", "UpdateProcessor\UpdateProcessor.csproj", "{7DC4CB75-EB38-487E-838A-0461017FCCB0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UpdateLib", "UpdateLib\UpdateLib.csproj", "{2F85B908-8F8C-4564-A87D-4427A4A272D5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +37,14 @@ Global
 		{F1EE4890-6C8F-4E23-A2E7-FED5CA115466}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F1EE4890-6C8F-4E23-A2E7-FED5CA115466}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F1EE4890-6C8F-4E23-A2E7-FED5CA115466}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7DC4CB75-EB38-487E-838A-0461017FCCB0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7DC4CB75-EB38-487E-838A-0461017FCCB0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7DC4CB75-EB38-487E-838A-0461017FCCB0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7DC4CB75-EB38-487E-838A-0461017FCCB0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F85B908-8F8C-4564-A87D-4427A4A272D5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F85B908-8F8C-4564-A87D-4427A4A272D5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F85B908-8F8C-4564-A87D-4427A4A272D5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F85B908-8F8C-4564-A87D-4427A4A272D5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

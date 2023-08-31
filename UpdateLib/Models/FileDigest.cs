@@ -1,4 +1,4 @@
-﻿namespace MSUpdateAPI.Models
+﻿namespace UpdateLib.Models
 {
 	public class FileDigest
 	{

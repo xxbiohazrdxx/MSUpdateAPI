@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace MSUpdateAPI.Models
+namespace UpdateLib.Models
 {
 	// This additional OwnedProduct class is needed as it is an owned type of the Update entity. Product cannot be used since it is 
 	// already mapped to a container. 
@@ -21,7 +21,8 @@ namespace MSUpdateAPI.Models
 		public List<Product> Subproducts { get; set; } = new List<Product>();
 		[JsonIgnore]
 		public List<string> Categories { get; set; } = default!;
-		internal bool Enabled
+		[JsonIgnore]
+		public bool Enabled
 		{
 			get
 			{

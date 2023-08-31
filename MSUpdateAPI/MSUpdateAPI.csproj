@@ -17,6 +17,7 @@
     <ProjectReference Include="..\microsoft-update-partition\microsoft-update-partition.csproj" />
     <ProjectReference Include="..\microsoft-update-upstream-package-source\microsoft-update-upstream-source.csproj" />
     <ProjectReference Include="..\microsoft-update-webservices\microsoft-update-webservices.csproj" />
+    <ProjectReference Include="..\UpdateLib\UpdateLib.csproj" />
   </ItemGroup>
 
 </Project>

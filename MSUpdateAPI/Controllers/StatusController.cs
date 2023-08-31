@@ -16,7 +16,7 @@ namespace MSUpdateAPI.Controllers
 		[HttpGet]
 		public ActionResult Get()
 		{
-			return Ok(service.Status);
+			return Ok(service.GetStatus());
 		}
 	}
 }

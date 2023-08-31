@@ -1,15 +1,12 @@
 ﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using Newtonsoft.Json;
-using System;
-
 namespace Microsoft.PackageGraph.ObjectModel
 {
-    /// <summary>
-    /// Represents digest information for an update content file
-    /// </summary>
-    public interface IContentFileDigest
+	/// <summary>
+	/// Represents digest information for an update content file
+	/// </summary>
+	public interface IContentFileDigest
     {
         /// <summary>
         /// Gets the digest algorithm used

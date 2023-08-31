@@ -1,4 +1,4 @@
-﻿namespace MSUpdateAPI.Models
+﻿namespace UpdateLib.Models
 {
 	// This additional OwnedCategory class is needed as it is an owned type of the Update entity. Category cannot be used since it is 
 	// already mapped to a container. 

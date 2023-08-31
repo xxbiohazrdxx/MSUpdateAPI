@@ -3,7 +3,6 @@
 
 using System;
 using System.IO;
-using System.IO.Compression;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.Text;
@@ -11,10 +10,10 @@ using System.Runtime.InteropServices;
 
 namespace Microsoft.PackageGraph.MicrosoftUpdate.Compression
 {
-    /// <summary>
-    /// Performs CAB compression and decompression. On Linux, it requires the cabextract; on windows it requires expand.exe
-    /// </summary>
-    public class CabinetUtility
+	/// <summary>
+	/// Performs CAB compression and decompression. On Linux, it requires the cabextract; on windows it requires expand.exe
+	/// </summary>
+	public class CabinetUtility
     {
         /// <summary>
         /// Recompress the given bytes

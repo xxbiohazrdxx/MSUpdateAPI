@@ -2,17 +2,15 @@
 // Licensed under the MIT License.
 
 using Newtonsoft.Json;
-using System;
 using System.Xml;
-using System.Xml.Linq;
 using System.Xml.XPath;
 
 namespace Microsoft.PackageGraph.MicrosoftUpdate.Metadata.Handlers
 {
-    /// <summary>
-    /// Metadata for the MSI install handler
-    /// </summary>
-    public class MsiHandler : HandlerMetadata
+	/// <summary>
+	/// Metadata for the MSI install handler
+	/// </summary>
+	public class MsiHandler : HandlerMetadata
     {
         /// <summary>
         /// Product code being installed

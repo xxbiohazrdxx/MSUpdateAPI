@@ -6,22 +6,20 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
 using Microsoft.PackageGraph.MicrosoftUpdate.Metadata;
-using Microsoft.PackageGraph.MicrosoftUpdate.Metadata.Content;
 
 namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
 {
-    /// <summary>
-    /// <para>
-    /// Retrieves update metadata for expired updates from an upstream update server.
-    /// </para>
-    /// <para>
-    /// This class should only be used for retrieving individual expired updates when their ID is known. For querying updates use <see cref="UpstreamUpdatesSource"/>. 
-    /// For querying products and classifications, use <see cref="UpstreamCategoriesSource"/>
-    /// </para>
-    /// </summary>
-    public class UpstreamServerClient
+	/// <summary>
+	/// <para>
+	/// Retrieves update metadata for expired updates from an upstream update server.
+	/// </para>
+	/// <para>
+	/// This class should only be used for retrieving individual expired updates when their ID is known. For querying updates use <see cref="UpstreamUpdatesSource"/>. 
+	/// For querying products and classifications, use <see cref="UpstreamCategoriesSource"/>
+	/// </para>
+	/// </summary>
+	public class UpstreamServerClient
     {
         /// <summary>
         /// Gets the update server <see cref="Endpoint"/> this client connects to.
