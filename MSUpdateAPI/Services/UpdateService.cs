@@ -1,10 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using UpdateLib.Configuration;
 using UpdateLib.Data;
 using UpdateLib.Models;
 
-namespace MSUpdateAPI.Services
+namespace UpdateAPI.Services
 {
 	public class UpdateService
 	{
@@ -16,6 +14,11 @@ namespace MSUpdateAPI.Services
 		{
 			logger = Logger;
 			dbContextFactory = DbContextFactory;
+		}
+
+		internal bool IsInitialSyncCompleted()
+		{
+			return true;
 		}
 
 		internal bool GetStatus()
@@ -96,11 +99,6 @@ namespace MSUpdateAPI.Services
 		{
 			var allProducts = await GetAllProducts();
 
-			if (allProducts is null)
-			{
-				return null!;
-			}
-
 			RemoveDisabledSubproducts(allProducts);
 			return allProducts;
 		}
@@ -110,12 +108,7 @@ namespace MSUpdateAPI.Services
 			using var dbContext = await dbContextFactory.CreateDbContextAsync();
 			var allProducts = await dbContext.Products.ToListAsync();
 
-			var rootProduct = allProducts.Where(x => !x.Categories.Any()).SingleOrDefault();
-
-			if (rootProduct is null)
-			{
-				return null!;
-			}
+			var rootProduct = allProducts.Where(x => !x.Categories.Any()).Single();
 
 			rootProduct.Enabled = false;
 

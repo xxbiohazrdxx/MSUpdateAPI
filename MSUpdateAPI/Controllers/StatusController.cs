@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using MSUpdateAPI.Services;
+using UpdateAPI.Services;
 
-namespace MSUpdateAPI.Controllers
+namespace UpdateAPI.Controllers
 {
 	[ApiController]
 	[Route("/api")]

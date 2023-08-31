@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using MSUpdateAPI.Services;
+using UpdateAPI.Services;
 using UpdateLib.Configuration;
 using UpdateLib.Data;
 

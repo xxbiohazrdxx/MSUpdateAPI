@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using MSUpdateAPI.Services;
+using UpdateAPI.Services;
 
-namespace MSUpdateAPI.Controllers
+namespace UpdateAPI.Controllers
 {
 	[ApiController]
 	[Route("/api/product")]
@@ -16,6 +16,11 @@ namespace MSUpdateAPI.Controllers
 		[HttpGet]
 		public async Task<ActionResult> Get([FromQuery] bool ShowDisabled = false)
 		{
+			if (!service.IsInitialSyncCompleted())
+			{
+				return StatusCode(StatusCodes.Status503ServiceUnavailable, "Initial metadata seeding is still in progress. Try again later.");
+			}
+
 			if (ShowDisabled)
 			{
 				var allProducts = await service.GetAllProducts();
