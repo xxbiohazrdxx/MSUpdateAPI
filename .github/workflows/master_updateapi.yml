@@ -9,7 +9,7 @@ on:
       - master
     paths:
       exclude:
-      - UpdateProcessor/*
+      - 'UpdateProcessor/*'
   workflow_dispatch:
 
 jobs:
