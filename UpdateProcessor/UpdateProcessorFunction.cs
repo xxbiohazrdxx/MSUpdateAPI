@@ -245,7 +245,7 @@ namespace UpdateProcessor
 
 			// Iterate through all updates that have bundled updates, copying the files from the bundled update to the primary update entity
 			var allBundledUpdates = await dbContext.Updates
-				.Where(x => x.BundledUpdates.Any())
+				.Where(x => x.BundledUpdates != null)
 				.ToListAsync(Token);
 
 			int bundleProgress = 1;
@@ -259,7 +259,8 @@ namespace UpdateProcessor
 					.SingleAsync(Token);
 
 				var bundledUpdateFiles = await dbContext.Updates
-					.Where(x => currentBundle.BundledUpdates.Any(y => y == x.Id.ToString()))
+					.FromSqlRaw("SELECT * FROM x WHERE ARRAY_CONTAINS({0}, x.id)", update.BundledUpdates)
+					//.Where(x => currentBundle.BundledUpdates.Any(y => y == x.Id.ToString()))
 					.ToListAsync(Token);
 
 				update.Files = bundledUpdateFiles
