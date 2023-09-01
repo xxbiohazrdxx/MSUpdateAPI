@@ -6,6 +6,7 @@ using Microsoft.PackageGraph.MicrosoftUpdate.Metadata;
 using Microsoft.PackageGraph.MicrosoftUpdate.Metadata.Content;
 using Microsoft.PackageGraph.MicrosoftUpdate.Source;
 using Microsoft.PackageGraph.Storage;
+using System.Configuration;
 using UpdateLib.Configuration;
 using UpdateLib.Data;
 using UpdateLib.Models;
@@ -29,6 +30,11 @@ namespace UpdateProcessor
 			logger = loggerFactory.CreateLogger<UpdateProcessorFunction>();
 			dbContextFactory = DbContextFactory;
 			configuration = Configuration.Value;
+
+			if (configuration.EnabledCategories.Count == 0 || configuration.EnabledProducts.Count == 0)
+			{
+				throw new ConfigurationErrorsException("EnabledCategories and EnabledProducts must contain at least one valid GUID");
+			}
 		}
 
 		[Function("UpdateProcessorFunction")]
