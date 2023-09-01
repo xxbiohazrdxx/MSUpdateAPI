@@ -7,9 +7,6 @@ on:
   push:
     branches:
       - master
-    paths:
-      exclude:
-      - 'UpdateProcessor/*'
   workflow_dispatch:
 
 jobs:
@@ -29,7 +26,7 @@ jobs:
         run: dotnet build --configuration Release
 
       - name: dotnet publish
-        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish -c APIRelease -o ${{env.DOTNET_ROOT}}/myapp
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v2

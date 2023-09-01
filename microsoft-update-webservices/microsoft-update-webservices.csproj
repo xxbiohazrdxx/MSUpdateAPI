@@ -14,6 +14,7 @@
     <FileVersion>3.0.0.0</FileVersion>
     <AssemblyVersion>3.0.0.0</AssemblyVersion>
     <ProductVersion>3.0.0.0</ProductVersion>
+    <Configurations>Debug;Release;FunctionRelease;APIRelease</Configurations>
   </PropertyGroup>
 
   <ItemGroup>

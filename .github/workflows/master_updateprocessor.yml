@@ -7,9 +7,6 @@ on:
   push:
     branches:
       - master
-    paths:
-      exclude:
-      - 'MSUpdateAPI/*'
   workflow_dispatch:
 
 env:
@@ -32,7 +29,7 @@ jobs:
         shell: pwsh
         run: |
           pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
-          dotnet build --configuration Release --output ./output
+          dotnet build --configuration FunctionRelease --output ./output
           popd
 
       - name: 'Run Azure Functions Action'

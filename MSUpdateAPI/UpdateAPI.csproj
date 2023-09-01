@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
 	  <ServerGarbageCollection>false</ServerGarbageCollection>
+	  <Configurations>Debug;Release;FunctionRelease;APIRelease</Configurations>
   </PropertyGroup>
 
   <ItemGroup>
