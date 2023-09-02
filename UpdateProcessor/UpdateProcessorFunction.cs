@@ -1,5 +1,6 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.PackageGraph.MicrosoftUpdate.Metadata;
@@ -20,8 +21,6 @@ namespace UpdateProcessor
 		private readonly IDbContextFactory<DatabaseContext> dbContextFactory;
 
 		private readonly FunctionConfiguration configuration;
-
-		public Status Status { get; private set; } = new Status();
 
 		private string logMessagePrefix = string.Empty;
 
@@ -46,23 +45,31 @@ namespace UpdateProcessor
 			using (var dbContext = await dbContextFactory.CreateDbContextAsync(Token))
 			{
 				await dbContext.Database.EnsureCreatedAsync(Token);
+
+				var status = await dbContext.Status.FirstAsync(Token);
+				status.State = Status.LoadingMetadata;
+				await dbContext.SaveChangesAsync(Token);
 			}
 
 			await LoadMetadata(Token);
+
+			using (var dbContext = await dbContextFactory.CreateDbContextAsync(Token))
+			{
+				var status = await dbContext.Status.FirstAsync(Token);
+				status.State = Status.Idle;
+				status.InitialSyncComplete = true;
+				await dbContext.SaveChangesAsync(Token);
+			}
 		}
 
 		// Activates the trottle timer and begins metadata downloads from the upstream source
 		internal async Task LoadMetadata(CancellationToken Token)
 		{
-			Status.State = Status.LoadingMetadata;
-			Status.AddLogMessage("Beginning metadata refresh");
 			logger.LogInformation("Beginning metadata refresh");
 
 			await LoadClassificationMetadata(Token);
 			await LoadUpdateMetadata(Token);
 
-			Status.State = Status.Idle;
-			Status.AddLogMessage("Metadata refresh complete");
 			logger.LogInformation("Metadata refresh complete");
 		}
 
@@ -92,10 +99,6 @@ namespace UpdateProcessor
 					.Concat(allExistingProducts.Select(x => x.Id))
 					.Concat(allExistingDetectoids.Select(x => x.Id)));
 
-			Status.AddLogMessage("Processing classification metadata");
-			Status.CategoryCount = allExistingCategories.Count;
-			Status.ProductCount = allExistingProducts.Count;
-			Status.DetectoidCount = allExistingDetectoids.Count;
 			logger.LogInformation("Processing classification metadata");
 			logger.LogInformation("Existing db classification count: C: {existingCategoryCount}, P: {existingProductCount}, D: {existingDetectoidCount}",
 				allExistingCategories.Count,
@@ -105,57 +108,50 @@ namespace UpdateProcessor
 			// Iterate through all of the metadata returned by the upstream source
 			await foreach (var currentClassification in allClassificationCategories)
 			{
-				using (var dbContext = await dbContextFactory.CreateDbContextAsync(Token))
+				using var dbContext = await dbContextFactory.CreateDbContextAsync(Token);
+
+				// Depending on the type of the MicrosoftUpdatePackage, create the entity type and insert into the correct container
+				if (currentClassification is ClassificationCategory)
 				{
-					// Depending on the type of the MicrosoftUpdatePackage, create the entity type and insert into the correct container
-					if (currentClassification is ClassificationCategory)
+					await dbContext.Categories.AddAsync(new Category()
 					{
-						await dbContext.Categories.AddAsync(new Category()
-						{
-							Id = currentClassification.Id.ID,
-							Name = currentClassification.Title,
-							Enabled = configuration.EnabledCategories.Contains(currentClassification.Id.ID)
-						}, Token); ;
-
-						Status.CategoryCount++;
-					}
-					else if (currentClassification is ProductCategory)
-					{
-						await dbContext.Products.AddAsync(new Product()
-						{
-							Id = currentClassification.Id.ID,
-							Revision = currentClassification.Id.Revision,
-							Name = currentClassification.Title,
-							Enabled = configuration.EnabledProducts.Contains(currentClassification.Id.ID),
-							Categories = currentClassification.Categories?.Select(y => y.ToString()).ToList() ?? new List<string>()
-						}, Token);
-
-						Status.ProductCount++;
-					}
-					// While we don't actually use detectoids, storing them in the database reduces delta metadata sync time
-					else if (currentClassification is DetectoidCategory)
-					{
-						await dbContext.Detectoids.AddAsync(new Detectoid()
-						{
-							Id = currentClassification.Id.ID,
-							Revision = currentClassification.Id.Revision,
-							Name = currentClassification.Title
-						}, Token);
-
-						Status.DetectoidCount++;
-					}
-					else
-					{
-						break;
-					}
-
-					await dbContext.SaveChangesAsync(Token);
-
-					logger.LogTrace("Added classification: {Id}:{Revision} - {Title}",
-						currentClassification.Id.ID,
-						currentClassification.Id.Revision,
-						currentClassification.Title);
+						Id = currentClassification.Id.ID,
+						Name = currentClassification.Title,
+						Enabled = configuration.EnabledCategories.Contains(currentClassification.Id.ID)
+					}, Token); ;
 				}
+				else if (currentClassification is ProductCategory)
+				{
+					await dbContext.Products.AddAsync(new Product()
+					{
+						Id = currentClassification.Id.ID,
+						Revision = currentClassification.Id.Revision,
+						Name = currentClassification.Title,
+						Enabled = configuration.EnabledProducts.Contains(currentClassification.Id.ID),
+						Categories = currentClassification.Categories?.Select(y => y.ToString()).ToList() ?? new List<string>()
+					}, Token);
+				}
+				// While we don't actually use detectoids, storing them in the database reduces delta metadata sync time
+				else if (currentClassification is DetectoidCategory)
+				{
+					await dbContext.Detectoids.AddAsync(new Detectoid()
+					{
+						Id = currentClassification.Id.ID,
+						Revision = currentClassification.Id.Revision,
+						Name = currentClassification.Title
+					}, Token);
+				}
+				else
+				{
+					break;
+				}
+
+				await dbContext.SaveChangesAsync(Token);
+
+				logger.LogTrace("Added classification: {Id}:{Revision} - {Title}",
+					currentClassification.Id.ID,
+					currentClassification.Id.Revision,
+					currentClassification.Title);
 			}
 		}
 
@@ -190,8 +186,6 @@ namespace UpdateProcessor
 			// Existing IDs from the database can be passed to the upstream source, those IDs will be ignored and not downloaded/processed again
 			var allUpdates = updatesSource.GetUpdates(Token, allExistingUpdates.Select(x => x.Id));
 
-			Status.AddLogMessage("Processing update metadata");
-			Status.UpdateCount = allExistingUpdates.Count;
 			logger.LogInformation("Processing update metadata");
 			logger.LogInformation("Existing db update count: {existingUpdateCount}", allExistingUpdates.Count);
 
@@ -203,7 +197,9 @@ namespace UpdateProcessor
 					break;
 				}
 
-				var newUpdate = new Update()
+				using var dbContext = await dbContextFactory.CreateDbContextAsync(Token);
+
+				await dbContext.Updates.AddAsync(new Update()
 				{
 					Id = currentUpdate.Id.ID,
 					Title = currentUpdate.Title,
@@ -247,15 +243,9 @@ namespace UpdateProcessor
 							Size = y.Size
 						})
 						.ToList()
-				};
+				}, Token);
 
-				Status.UpdateCount++;
-
-				using (var dbContext = await dbContextFactory.CreateDbContextAsync(Token))
-				{
-					await dbContext.Updates.AddAsync(newUpdate, Token);
-					await dbContext.SaveChangesAsync(Token);
-				}
+				await dbContext.SaveChangesAsync(Token);
 
 				logger.LogTrace("Added update: {Id}:{Revision} - {Title}",
 					currentUpdate.Id.ID,
@@ -263,7 +253,6 @@ namespace UpdateProcessor
 					currentUpdate.Title);
 			}
 
-			Status.AddLogMessage("Processing bundled update file lists");
 			logger.LogInformation("Processing bundled update file lists");
 
 			// Iterate through all updates that have bundled updates, copying the files from the bundled update to the primary update entity
@@ -278,7 +267,6 @@ namespace UpdateProcessor
 			int bundleProgress = 1;
 			foreach (var currentBundle in allBundledUpdates)
 			{
-				Status.AddLogMessage(string.Format("Processing bundled update file lists: {0}/{1}", bundleProgress, allBundledUpdates.Count));
 				logger.LogInformation("Processing bundled update file lists: {Current}/{Total}", bundleProgress, allBundledUpdates.Count);
 
 				using (var dbContext = await dbContextFactory.CreateDbContextAsync(Token))
@@ -318,7 +306,6 @@ namespace UpdateProcessor
 
 		private void CopyProgress(object? sender, PackageStoreEventArgs e)
 		{
-			Status.AddLogMessage(string.Format("{0}: {1}/{2}", logMessagePrefix, e.Current, e.Total));
 			logger.LogInformation("{LogMessagePrefix}: {Current}/{Total}", logMessagePrefix, e.Current, e.Total);
 		}
 	}

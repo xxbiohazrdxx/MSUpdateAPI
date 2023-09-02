@@ -14,20 +14,20 @@ namespace UpdateAPI.Controllers
 		}
 
 		[HttpGet]
-		public async Task<ActionResult> Get([FromQuery] bool ShowDisabled = false)
+		public async Task<ActionResult> Get(CancellationToken Token, [FromQuery] bool ShowDisabled = false)
 		{
-			if (!service.IsInitialSyncCompleted())
+			if (!await service.IsInitialSyncCompleted(Token))
 			{
 				return StatusCode(StatusCodes.Status503ServiceUnavailable, "Initial metadata seeding is still in progress. Try again later.");
 			}
 
 			if (ShowDisabled)
 			{
-				var allProducts = await service.GetAllProducts();
+				var allProducts = await service.GetAllProducts(Token);
 				return allProducts == null ? StatusCode(StatusCodes.Status503ServiceUnavailable) : Ok(allProducts);
 			}
 
-			var products = await service.GetProducts();
+			var products = await service.GetProducts(Token);
 			return products == null ? StatusCode(StatusCodes.Status503ServiceUnavailable) : Ok(products);
 		}
 	}

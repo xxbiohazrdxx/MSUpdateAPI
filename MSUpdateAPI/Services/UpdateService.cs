@@ -16,20 +16,22 @@ namespace UpdateAPI.Services
 			dbContextFactory = DbContextFactory;
 		}
 
-		internal bool IsInitialSyncCompleted()
+		internal async Task<bool> IsInitialSyncCompleted(CancellationToken Token)
 		{
-			return true;
+			var status = await GetStatus(Token);
+			return status.InitialSyncComplete;
 		}
 
-		internal bool GetStatus()
+		internal async Task<Status> GetStatus(CancellationToken Token)
 		{
-			throw new NotImplementedException();
+			using var dbContext = await dbContextFactory.CreateDbContextAsync(Token);
+			return await dbContext.Status.FirstAsync(Token);
 		}
 
 		#region Updates
-		internal async Task<IEnumerable<Update>> GetUpdates(Guid? Category, Guid? Product, string? SearchString)
+		internal async Task<IEnumerable<Update>> GetUpdates(Guid? Category, Guid? Product, string? SearchString, CancellationToken Token)
 		{
-			using var dbContext = await dbContextFactory.CreateDbContextAsync();
+			using var dbContext = await dbContextFactory.CreateDbContextAsync(Token);
 
 			IEnumerable<Update> allUpdates = await dbContext.Updates
 					// This is effectively ".Where(x => x.Title.Contains(SearchString, StringComparison.InvariantCultureIgnoreCase)"
@@ -41,7 +43,7 @@ namespace UpdateAPI.Services
 					// translated and evaluated by the database, it effectively becomes "null == Classification.Value" in that scenario
 					.Where(x => !Category.HasValue || x.Classification!.Id == Category.Value)
 					.OrderByDescending(x => x.CreationDate)
-					.ToListAsync();
+					.ToListAsync(Token);
 
 			// Evaluate the product filtering client side, as Owned types (in this case, Product) cannot be evaluated server side using the Cosmos provider
 			// This could potentially be converted into raw SQL so the query could be run server side, but the client side overhead seems reasonable
@@ -51,26 +53,26 @@ namespace UpdateAPI.Services
 			return allUpdates;
 		}
 
-		internal async Task<Update?> GetUpdate(Guid Id)
+		internal async Task<Update?> GetUpdate(Guid Id, CancellationToken Token)
 		{
-			using var dbContext = await dbContextFactory.CreateDbContextAsync();
+			using var dbContext = await dbContextFactory.CreateDbContextAsync(Token);
 			var update = await dbContext.Updates
 				.Where(x => x.Id == Id)
-				.SingleOrDefaultAsync();
+				.SingleOrDefaultAsync(Token);
 
 			return update;
 		}
 
-		internal async Task<Update?> GetSupersedingUpdate(Guid Id)
+		internal async Task<Update?> GetSupersedingUpdate(Guid Id, CancellationToken Token)
 		{
-			using var dbContext = await dbContextFactory.CreateDbContextAsync();
+			using var dbContext = await dbContextFactory.CreateDbContextAsync(Token);
 
 			// Finds the update with the newest CreationDate where the list of superseded updates contains the provided Id
 			// Not perfect, as some superseded metadata is missing/incorrect directly from the source, but probably good enough
 			var supersedingUpdate = await dbContext.Updates
 				.FromSqlRaw("SELECT * FROM x WHERE ARRAY_CONTAINS(x.Superseded, {0})", Id)
 				.OrderByDescending(x => x.CreationDate)
-				.FirstOrDefaultAsync();
+				.FirstOrDefaultAsync(Token);
 
 			return supersedingUpdate;
 		}
@@ -78,35 +80,35 @@ namespace UpdateAPI.Services
 		#endregion
 
 		#region Categories
-		internal async Task<List<Category>> GetCategories()
+		internal async Task<List<Category>> GetCategories(CancellationToken Token)
 		{
-			var allCategories = await GetAllCategories();
+			var allCategories = await GetAllCategories(Token);
 
 			return allCategories.Where(x => x.Enabled).ToList();
 		}
 
-		internal async Task<List<Category>> GetAllCategories()
+		internal async Task<List<Category>> GetAllCategories(CancellationToken Token)
 		{
-			using var dbContext = await dbContextFactory.CreateDbContextAsync();
-			var allCategories = await dbContext.Categories.ToListAsync();
+			using var dbContext = await dbContextFactory.CreateDbContextAsync(Token);
+			var allCategories = await dbContext.Categories.ToListAsync(Token);
 
 			return allCategories;
 		}
 		#endregion
 
 		#region Products
-		internal async Task<Product> GetProducts()
+		internal async Task<Product> GetProducts(CancellationToken Token)
 		{
-			var allProducts = await GetAllProducts();
+			var allProducts = await GetAllProducts(Token);
 
 			RemoveDisabledSubproducts(allProducts);
 			return allProducts;
 		}
 
-		internal async Task<Product> GetAllProducts()
+		internal async Task<Product> GetAllProducts(CancellationToken Token)
 		{
-			using var dbContext = await dbContextFactory.CreateDbContextAsync();
-			var allProducts = await dbContext.Products.ToListAsync();
+			using var dbContext = await dbContextFactory.CreateDbContextAsync(Token);
+			var allProducts = await dbContext.Products.ToListAsync(Token);
 
 			var rootProduct = allProducts.Where(x => !x.Categories.Any()).Single();
 

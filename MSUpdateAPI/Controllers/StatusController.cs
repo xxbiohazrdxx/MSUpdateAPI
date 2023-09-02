@@ -14,9 +14,9 @@ namespace UpdateAPI.Controllers
 		}
 
 		[HttpGet]
-		public ActionResult Get()
+		public async Task<ActionResult> Get(CancellationToken Token)
 		{
-			return Ok(service.GetStatus());
+			return Ok(await service.GetStatus(Token));
 		}
 	}
 }

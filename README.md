@@ -40,6 +40,8 @@ Configuration__EnabledProducts__[0] = <the GUID of a product category>
 Configuration__EnabledProducts__[1] = <the GUID of a product category>
 ```
 
+Additional categories and products can be specified by adding additional environment variables and incrementing the value in the array index accessor (e.g. '[0]', '[1]', '[2]', etc).
+
 ## Usage
 
 ### Status
@@ -53,21 +55,8 @@ Easily check the state of the application
 
 ```json
 {
-  "state": "Loading Metadata",
-  "categoryCount": 10,
-  "productCount": 400,
-  "updateCount": 801,
-  "recentLogs": [
-    "Loading update metadata: 150/1246",
-    "Loading update metadata: 149/1246",
-    "Loading update metadata: 148/1246",
-    "Loading update metadata: 147/1246",
-    "Loading update metadata: 146/1246",
-    "Loading update metadata: 145/1246",
-    "Loading update metadata: 144/1246",
-    "Loading update metadata: 143/1246",
-    "Loading update metadata: 142/1246",
-    "Loading update metadata: 141/1246"
+  "initialSyncComplete": true,
+  "state": "Loading Metadata"
   ]
 }
 ```

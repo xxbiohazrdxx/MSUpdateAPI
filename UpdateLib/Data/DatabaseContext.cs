@@ -7,6 +7,7 @@ namespace UpdateLib.Data
 	{
 		public DatabaseContext(DbContextOptions<DatabaseContext> options) : base(options) { }
 
+		public DbSet<Status> Status { get; set; }
 		public DbSet<Product> Products { get; set; }
 		public DbSet<Category> Categories { get; set; }
 		public DbSet<Update> Updates { get; set; }
@@ -15,6 +16,20 @@ namespace UpdateLib.Data
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
 			builder.HasManualThroughput(1000);
+
+			builder.Entity<Status>(entity =>
+			{
+				entity.ToContainer("Status")
+				.HasNoDiscriminator()
+				.HasKey(x => x.Id);
+
+				entity.HasData(new Status()
+				{
+					Id = 1,
+					InitialSyncComplete = false,
+					State = Models.Status.Idle
+				});
+			});
 
 			builder.Entity<Product>(entity =>
 			{
