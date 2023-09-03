@@ -28,7 +28,7 @@ namespace UpdateLib.Data
 
 				entity.HasData(new Status()
 				{
-					Id = 1,
+					Id = "1",
 					InitialSyncComplete = false,
 					State = Models.Status.Idle
 				});
