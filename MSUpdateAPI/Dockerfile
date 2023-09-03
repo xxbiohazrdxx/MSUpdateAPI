@@ -8,9 +8,6 @@ EXPOSE 443
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 WORKDIR /src
 COPY ["MSUpdateAPI/UpdateAPI.csproj", "MSUpdateAPI/"]
-COPY ["microsoft-update-partition/microsoft-update-partition.csproj", "microsoft-update-partition/"]
-COPY ["microsoft-update-webservices/microsoft-update-webservices.csproj", "microsoft-update-webservices/"]
-COPY ["microsoft-update-upstream-package-source/microsoft-update-upstream-source.csproj", "microsoft-update-upstream-package-source/"]
 COPY ["UpdateLib/UpdateLib.csproj", "UpdateLib/"]
 RUN dotnet restore "MSUpdateAPI/UpdateAPI.csproj"
 COPY . .
