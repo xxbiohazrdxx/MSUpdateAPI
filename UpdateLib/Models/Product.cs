@@ -6,21 +6,21 @@ namespace UpdateLib.Models
 	// already mapped to a container. 
 	public class OwnedProduct
 	{
-		public Guid Id { get; set; }
-		public string Name { get; set; }
+		public Guid Id { get; set; } = default!;
+		public string Name { get; set; } = default!;
 
 		public OwnedProduct() { }
 	}
 
 	public class Product
 	{
-		public Guid Id { get; set; }
+		public Guid Id { get; set; } = default!;
 		[JsonIgnore]
-		public int Revision { get; set; }
-		public string Name { get; set; }
+		public int Revision { get; set; } = default!;
+		public string Name { get; set; } = default!;
 		public List<Product> Subproducts { get; set; } = new List<Product>();
 		[JsonIgnore]
-		public List<string> Categories { get; set; } = default!;
+		public List<string> Categories { get; set; } = new List<string>();
 		[JsonIgnore]
 		public bool Enabled
 		{

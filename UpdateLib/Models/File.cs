@@ -2,11 +2,11 @@
 {
 	public class File
 	{
-		public string FileName { get; set; }
-		public string Source { get; set; }
-		public DateTime ModifiedDate { get; set; }
-		public FileDigest Digest { get; set; } 
-		public ulong Size { get; set; }
+		public string FileName { get; set; } = default!;
+		public string Source { get; set; } = default!;
+		public DateTime ModifiedDate { get; set; } = default!;
+		public FileDigest Digest { get; set; } = default!;
+		public ulong Size { get; set; } = default!;
 
 		public File() { }
 	}

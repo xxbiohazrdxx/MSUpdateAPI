@@ -8,9 +8,9 @@ namespace UpdateLib.Models
 		public static readonly string Idle = "Idle";
 
 		[JsonIgnore]
-		public string Id { get; set; }
-		public bool InitialSyncComplete { get; set; }
-		public string State { get; set; }
+		public string Id { get; set; } = default!;
+		public bool InitialSyncComplete { get; set; } = default!;
+		public string State { get; set; } = default!;
 
 		public Status() { }
 	}

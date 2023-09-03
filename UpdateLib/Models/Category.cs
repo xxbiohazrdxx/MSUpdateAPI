@@ -4,17 +4,17 @@
 	// already mapped to a container. 
 	public class OwnedCategory
 	{
-		public Guid Id { get; set; }
-		public string Name { get; set; }
+		public Guid Id { get; set; } = default!;
+		public string Name { get; set; } = default!;
 
 		public OwnedCategory() { }
 	}
 
 	public class Category
 	{
-		public Guid Id { get; set; }
-		public string Name { get; set; }
-		public bool Enabled { get; set; }
+		public Guid Id { get; set; } = default!;
+		public string Name { get; set; } = default!;
+		public bool Enabled { get; set; } = default!;
 
 		public Category() { }
 	}

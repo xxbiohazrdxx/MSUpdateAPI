@@ -4,9 +4,9 @@
 	// metadata downloads, speeding up the syncronization process
 	public class Detectoid
 	{
-		public Guid Id { get; set; }
-		public int Revision { get; set; }
-		public string Name { get; set; }
+		public Guid Id { get; set; } = default!;
+		public int Revision { get; set; } = default!;
+		public string Name { get; set; } = default!;
 
 		public Detectoid() { }
 	}

@@ -76,6 +76,8 @@ namespace UpdateProcessor
 		// Begin downloading classification (categories, products, and detectoids) metadata, and inserting it as it becomes available
 		private async Task LoadClassificationMetadata(CancellationToken Token)
 		{
+			Token.ThrowIfCancellationRequested();
+
 			logMessagePrefix = "Loading classification metadata";
 
 			List<Product> allExistingProducts;
@@ -106,7 +108,7 @@ namespace UpdateProcessor
 				allExistingDetectoids.Count);
 
 			// Iterate through all of the metadata returned by the upstream source
-			await foreach (var currentClassification in allClassificationCategories)
+			await foreach (var currentClassification in allClassificationCategories.WithCancellation(Token))
 			{
 				using var dbContext = await dbContextFactory.CreateDbContextAsync(Token);
 
@@ -158,6 +160,8 @@ namespace UpdateProcessor
 		// Begin downloading update metadata, and inserting it as it becomes available
 		private async Task LoadUpdateMetadata(CancellationToken Token)
 		{
+			Token.ThrowIfCancellationRequested();
+
 			logMessagePrefix = "Loading update metadata";
 
 			List<Update> allExistingUpdates;
@@ -190,7 +194,7 @@ namespace UpdateProcessor
 			logger.LogInformation("Existing db update count: {existingUpdateCount}", allExistingUpdates.Count);
 
 			// Iterate through all of the metadata returned by the upstream source
-			await foreach (var current in allUpdates)
+			await foreach (var current in allUpdates.WithCancellation(Token))
 			{
 				if (current is not SoftwareUpdate currentUpdate)
 				{

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.PackageGraph.MicrosoftUpdate.Metadata;
+using System.Threading;
 
 namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
 {
@@ -221,9 +222,11 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
         /// Retrieves update data for the list of update ids
         /// </summary>
         /// <param name="updateIds">The ids to retrieve data for</param>
-        internal async IAsyncEnumerable<MicrosoftUpdatePackage> GetUpdateDataForIds(MicrosoftUpdatePackageIdentity[] updateIds)
+        internal async IAsyncEnumerable<MicrosoftUpdatePackage> GetUpdateDataForIds(MicrosoftUpdatePackageIdentity[] updateIds, CancellationToken cancelToken)
         {
-            await RefreshTokenAndConfig();
+			cancelToken.ThrowIfCancellationRequested();
+
+			await RefreshTokenAndConfig();
 
             var retrieveBatches = updateIds
                 .Select(id => new UpdateIdentity() { UpdateID = id.ID, RevisionNumber = id.Revision })
@@ -231,7 +234,9 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
 
             foreach(var batch in retrieveBatches)
             {
-                var updateDataRequest = new GetUpdateDataRequest
+                cancelToken.ThrowIfCancellationRequested();
+
+				var updateDataRequest = new GetUpdateDataRequest
                 {
                     GetUpdateData = new GetUpdateDataRequestBody()
                     {

@@ -51,11 +51,7 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
 
         private async Task RetrievePackageIdentities()
         {
-            if (_Identities == null)
-            {
-                _Identities = await _Client.GetCategoryIds();
-                //_Identities.Sort();
-            }
+            _Identities ??= await _Client.GetCategoryIds();
         }
 
 		/// <summary>
@@ -66,6 +62,8 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
 		/// <returns>List of Microsoft Update categories</returns>
 		public async IAsyncEnumerable<MicrosoftUpdatePackage> GetCategories(CancellationToken cancelToken, IEnumerable<Guid> excludedPackageIds = null)
         {
+			cancelToken.ThrowIfCancellationRequested();
+
 			excludedPackageIds ??= Array.Empty<Guid>();
 
             await RetrievePackageIdentities();
@@ -80,14 +78,11 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
                 var progressArgs = new PackageStoreEventArgs() { Total = unavailableUpdates.Count(), Current = 0 };
                 foreach(var batch in batches)
                 {
-                    if (cancelToken.IsCancellationRequested)
-                    {
-                        break;
-                    }
-					
-					var retrievedPackages = _Client.GetUpdateDataForIds(batch);
+					cancelToken.ThrowIfCancellationRequested();
 
-                    await foreach(var updatePackage in retrievedPackages)
+					var retrievedPackages = _Client.GetUpdateDataForIds(batch, cancelToken);
+
+                    await foreach(var updatePackage in retrievedPackages.WithCancellation(cancelToken))
                     {
 						Interlocked.Increment(ref progressArgs.Current);
 						MetadataCopyProgress?.Invoke(this, progressArgs);
@@ -107,7 +102,9 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
         /// <inheritdoc cref="IMetadataSource.CopyTo(IMetadataSink, CancellationToken)"/>
         public async Task CopyTo(IMetadataSink destination, CancellationToken cancelToken)
         {
-            await RetrievePackageIdentities();
+			cancelToken.ThrowIfCancellationRequested();
+
+			await RetrievePackageIdentities();
 
             IEnumerable<MicrosoftUpdatePackageIdentity> unavailableUpdates;
 
@@ -129,14 +126,11 @@ namespace Microsoft.PackageGraph.MicrosoftUpdate.Source
 
                 foreach(var batch in batches)
                 {
-                    if (cancelToken.IsCancellationRequested)
-                    {
-                        return;
-                    }
+					cancelToken.ThrowIfCancellationRequested();
 
-                    var retrievedPackages = _Client.GetUpdateDataForIds(batch);
+					var retrievedPackages = _Client.GetUpdateDataForIds(batch, cancelToken);
 
-                    await foreach(var updatePackage in retrievedPackages)
+                    await foreach(var updatePackage in retrievedPackages.WithCancellation(cancelToken))
                     {
                         destination.AddPackage(updatePackage);
 
