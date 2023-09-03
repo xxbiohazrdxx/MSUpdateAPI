@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Azure.Cosmos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using UpdateAPI.Services;
@@ -23,8 +24,26 @@ builder.Services.AddSingleton<UpdateService>();
 builder.Services.AddDbContextFactory<DatabaseContext>((IServiceProvider serviceProvider, DbContextOptionsBuilder options) =>
 {
 	var databaseConfiguration = serviceProvider.GetRequiredService<IOptions<DatabaseConfiguration>>().Value;
+
+#if !DEBUG
 	options.UseCosmos(databaseConfiguration.Uri, databaseConfiguration.PrimaryKey, databaseConfiguration.DatabaseName);
+#endif
+
 #if DEBUG
+	options.UseCosmos(databaseConfiguration.Uri, databaseConfiguration.PrimaryKey, databaseConfiguration.DatabaseName, clientOptions =>
+	{
+		clientOptions.HttpClientFactory(() =>
+		{
+			HttpMessageHandler httpMessageHandler = new HttpClientHandler()
+			{
+				ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+			};
+
+			return new HttpClient(httpMessageHandler);
+		});
+		clientOptions.ConnectionMode(ConnectionMode.Gateway);
+	});
+
 	options.EnableSensitiveDataLogging();
 #endif
 });
