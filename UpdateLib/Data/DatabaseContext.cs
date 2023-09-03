@@ -19,6 +19,9 @@ namespace UpdateLib.Data
 
 			builder.Entity<Status>(entity =>
 			{
+				entity.Property(x => x.Id)
+					.ToJsonProperty("id");
+
 				entity.ToContainer("Status")
 				.HasNoDiscriminator()
 				.HasKey(x => x.Id);
