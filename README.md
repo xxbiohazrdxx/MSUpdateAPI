@@ -62,7 +62,6 @@ Easily check the state of the application
 {
   "initialSyncComplete": true,
   "state": "Loading Metadata"
-  ]
 }
 ```
 
@@ -188,8 +187,7 @@ Lists the updates that match the enabled categories and products.
         "size": 344979156
       }
     ]
-  },
-...
+  }
 ]
 ```
 
