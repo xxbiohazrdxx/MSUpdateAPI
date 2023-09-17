@@ -1,0 +1,24 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Converts Markdown to HTML
+      uses: jaywcjlove/markdown-to-html-cli@main
+      with:
+        source: README.md
+        output: MSUpdateAPI/index.html
+        github-corners: https://github.com/xxbiohazrdxx/MSUpdateAPI
+#    - name: Build the Docker image
+#      run: docker build . --file MSUpdateAPI/Dockerfile
