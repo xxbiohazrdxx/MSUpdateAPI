@@ -13,12 +13,26 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - name: Check out the repo
+      uses: actions/checkout@v3
+      
     - name: Converts Markdown to HTML
       uses: jaywcjlove/markdown-to-html-cli@main
       with:
         source: README.md
-        output: MSUpdateAPI/index.html
+        output: MSUpdateAPI/wwwroot/index.html
         github-corners: https://github.com/xxbiohazrdxx/MSUpdateAPI
-#    - name: Build the Docker image
-#      run: docker build . --file MSUpdateAPI/Dockerfile
+        
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./MSUpdateAPI/Dockerfile
+        push: true
+        tags: xxbiohazrdxx/updateapi:latest
