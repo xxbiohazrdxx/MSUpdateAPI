@@ -1,0 +1,24 @@
+name: Automated HTML Generation
+on: 
+  push:
+    paths:
+    - readme.md
+permissions:
+  contents: write
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Converts Markdown to HTML
+        uses: jaywcjlove/markdown-to-html-cli@main
+        with:
+          source: README.md
+          output: MSUpdateAPI/wwwroot/index.html
+          github-corners: https://github.com/xxbiohazrdxx/MSUpdateAPI
+      - name: Commit HTML
+        run: |
+          git config --global user.name 'xxbiohazrdxx'
+          git config --global user.email 'xxbiohazrdxx@users.noreply.github.com'
+          git commit -am "Automated HTML Generation"
+          git push
